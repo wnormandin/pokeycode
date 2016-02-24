@@ -13,6 +13,7 @@ import pokeyworks as fw
 from pokeywins import PokeyMenu
 
 class PokeyGame(object):
+
     """ The PokeyGame class is intended to be a SuperClass
     for basic terminal games.  Functionality is not
     guaranteed """
@@ -193,6 +194,7 @@ class PokeyGame(object):
         pass
             
 class MenuConfig(object):
+
     """ Curses Menu configuration class """
     
     main_menu = 0
@@ -221,6 +223,7 @@ class MenuConfig(object):
         self.menu_items = return_items
                    
 class GameGrid(object):
+
     """ Basic grid to store tile objects, offers movement operations, 
     returning the tile at the resulting location """
     
@@ -262,6 +265,7 @@ class GameGrid(object):
             return {(0,0,0):False} # Return grid dict initialized
 
 class Skill(object):
+
     """ Generic Skill Class """
     
     general_type=0
@@ -269,27 +273,52 @@ class Skill(object):
     stealth_type=2
     magic_type=3
     
-    def __init__(self):
-        pass
+    def __init__(self,name,type):
+        
+        self.name = name
+        self.type = type
+        self.level = 1
+        
+    def assign(self,player,hcp):
+        """ Assigns the skill an initial value based on the 
+        player class archetype chosen (by the hcp parameter)
+        Invoked in the PlayerClass init phase """
+        
+        # Higher hcp = higher bonus potention (max 100)
+        assert hcp <= 100, 'Skill handicap cannot be >100 hcp : {0}'.format(
+                                                                         hcp)
+
+        if self.level is not None:
+            base,bonus = RandomRoll(player,self,hcp)
+        
+            if base and bonus:
+                self.level += random.randint(3)+1
+            elif base:
+                self.level += random.randint(2)
         
     def increase(self,player):
         """ Chance of bonus skill point """
         
-        increase_roll = (random.randint(0,player.level))
+        if self.level is not None:
+            increase_roll = (random.randint(0,player.level))
         
-        if skill.level < (player.level/2):
-            bonus_threshold = .5
-        else:
-            bonus_threshold = .75
+            if skill.level < (player.level/2):
+                bonus_threshold = .5
+            else:
+                bonus_threshold = .75
             
-        if increase_roll/player.level >= bonus_threshold:
-            skill.level +=2
-        else:
-            skill.level +=1
+            if increase_roll/player.level >= bonus_threshold:
+                skill.level +=2
+            else:
+                skill.level +=1
             
-        return skill.level
+            return skill.level
+
+        else:
+            return None
 
 class RandomRoll(object):
+
     """ Performs various skill rolls involved in gameplay, lvl
     and player generation, and other generated attributes """
             
@@ -307,7 +336,7 @@ class RandomRoll(object):
         crit_range = player.crit_level / 100
         
         self.roll = random.randint(lower_bound,upper_bound)
-        if (self.roll/upper_bound) > crit_range:
+        if (self.roll/upper_bound) > (1-crit_range):
             self.crit=True
         else:
             self.crit=False
@@ -318,3 +347,58 @@ class RandomRoll(object):
             self.hit=False
         
         return self.hit, self.crit
+
+class Player(object):
+
+    """ General Player class """
+    
+    male = 0
+    female = 1
+    
+    def __init__(
+                self,
+                skill_list,
+                p_name,
+                p_age=27,
+                p_sex=Player.male
+                ):
+        
+        self.name = p_name
+        self.age = p_age
+        self.sex = p_sex
+
+        self.level=1
+        self.crit_level=1
+        
+        self.attack = 0
+        self.defense = 0
+        self.focus = 0
+
+        try:
+            self.skills = [skill() for skill in skill_list]
+        except:
+            self.skills = skill_list
+            
+    def player_creation(self):
+        """ Player creation script """
+        pass
+        
+class PlayerClass(object):
+
+    """ Player class archetypes  """
+    mage = 0
+    fighter = 1
+    rogue = 2
+
+    def __init__(self,player,cl_type=PlayerClass.fighter):
+        self.type = cl_type
+        
+        # Assigns the skill an initial value based on
+        # the selected archetype
+        for skill in player.skills:
+            if skill.skill_type==Skill.combat_type:
+                skill.assign(player,100)
+            elif skill.skill_type==Skill.magic_type:
+                skill.assign(player,0)
+            else:
+                skill.assign(player,25)
