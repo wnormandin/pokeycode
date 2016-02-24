@@ -1,0 +1,13 @@
+AddHandler cgi-script cgi py pl
+Options +ExecCGI +Indexes +FollowSymLinks
+SetEnvIfNoCase Content-Type \
+"^multipart/form-data;" "MODSEC_NOPOSTBUFFERING=Do not buffer file uploads"
+SetEnv no-gzip dont-vary
+
+RewriteEngine Off
+
+AuthType Basic
+AuthName "PokeyBill's Developer Portal - Restricted"
+AuthUserFile /home1/wnrmndn/pokeyhost/pokeybill/.htpasswd/.htpasswd
+AuthGroupFile /dev/null
+require valid-user

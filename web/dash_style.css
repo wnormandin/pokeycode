@@ -1,0 +1,90 @@
+<style>
+header {
+    background-color:black;
+    color:white;
+    text-align:center;
+    padding:5px; 
+}
+nav {
+    background-color:#eeeeee;
+    text-align:center;
+}
+section {
+    width:350px;
+    float:left;
+    padding:5px; 
+    font-family: Verdana, Arial, 'sans-serif';
+    font-size: 75%;
+    overflow:auto;
+}
+aside {
+    font-family: Verdana, Arial, 'sans-serif';
+    font-size: 75%;
+}
+table.footer {
+    font-family: Verdana, Arial, 'sans-serif';
+    font-size: 75%;
+    padding:5px;
+    bottom: 0;
+}
+td {
+    vertical-align: bottom;
+}
+img.resize{
+    width:30px;
+    height: auto;
+    z-index: -1;
+    float:left;
+    overflow:auto;
+}
+form {
+    overflow:auto;
+}
+form.odb {
+    z-index: 1;
+}
+table.host_info {
+    border-style: groove;
+    border-width: 1px;
+    font-family: Verdana, Arial, 'sans-serif';
+    font-size: 70%;
+    overflow:auto;
+    height:auto;
+}
+div {
+    border-style: groove;
+    border-width: 1px;
+    font-family: Verdana, Arial, 'sans-serif';
+    font-size: 75%;
+    align:center;
+    overflow:auto;
+}
+td.dash_menu {
+    font-family: Verdana, Arial, 'sans-serif';
+    font-size: 60%;
+    overflow:auto;
+}    
+#alerts_section {
+    width:25%;
+    height:100%;
+    padding:5px;
+    float:right;
+}
+#information_section {
+    width:40%;
+    height:100%;
+    padding:10px;
+    float:left;
+    border-style: groove;
+    border-width: 1px;
+}
+#left_form_bar {
+    border-style: none;
+    width:30%;
+    height:100%;
+    padding:5px;
+    float:left;
+    z-index: -1;
+    overflow:auto;
+}
+</style>
