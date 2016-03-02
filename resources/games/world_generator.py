@@ -13,9 +13,9 @@ class WorldGenerator(object):
 
     def __init__(
                 self,           # The World Generator object
-                dim_x=10,       # x dimension range
-                dim_y=10,       # y dimension range
-                dim_z=2,        # z dimension range
+                dim_x=25,       # x dimension range
+                dim_y=25,       # y dimension range
+                dim_z=3,        # z dimension range
                 flex_limit=0,   # Maximum dimension fluctuation
                 ):
         """ WorldGenerator creates a world_generation_template """
@@ -115,21 +115,38 @@ class WorldGenerator(object):
                 print 'Ascent Point Set {0}'.format((x_test,y_test,i+1))
                 i += 1
 
-    def path_avail_dirs(self,pos,impediments,random=False):
+    def path_avail_dirs(self,position,impediments,rand=False):
         # Processes available directions, returns a random direction
         # if the random flag is passed, else returns the direction
         # list
 
+        imp = impediments
+        p = position
         # impediments will contain impassable vals
-        north = True if self.grid(pos[0]+1) not in impediments else False
-        south = True if self.grid(pos[0]-1) not in impediments else False
-        east = True if self.grid(pos[1]+1) not in impediments else False
-        west = True if self.grid(pos[1]-1) not in impediments else False
+        # x-axis
+        if p[0]+1>=self.dim_x:
+            north = False
+        else:
+            north = True if self.grid[p[0]+1,p[1],p[2]] not in imp else False
+        if p[0]-1<=0:
+            south = False
+        else:
+            south = True if self.grid[p[0]-1,p[1],p[2]] not in imp else False
+
+        # y-axis
+        if p[1]+1>=self.dim_y:
+            east = False
+        else:
+            east = True if self.grid[p[0],p[1]+1,p[2]] not in imp else False
+        if p[1]-1<=0:
+            west = False
+        else:
+            west = True if self.grid[p[0],p[1]-1,p[2]] not in imp else False
 
         dirs = [north,south,east,west]
         assert any(dirs),'Pathing : No available moves!'
 
-        if not random:
+        if not rand:
             return dirs
         else:
             # Randomly selects an available move and returns it
@@ -137,9 +154,15 @@ class WorldGenerator(object):
                 roll = random.randint(0,3)
                 dirs = [north,south,east,west]
                 if dirs[roll]:
-                    retval = dirs[roll].__name__
+                    if roll in [0,1]:
+                        idx = 0
+                        val = 1 if roll==0 else -1
+                    else:
+                        idx = 1
+                        val = 1 if roll==2 else -1
                     break
-            return retval
+
+            return idx,val
 
     def calc_dist(self,pt1,pt2):
         x_term = pt1[0]-pt2[0]
@@ -202,6 +225,7 @@ class WorldGenerator(object):
         """ Builds paths of hallways to waypoints """
 
         waypoints_per_floor = ((self.dim_x+self.dim_y)/2)/2
+        print 'waypoint density : {0}'.format(waypoints_per_floor)
         way_list = self.build_waypoints(waypoints_per_floor)
 
         for i in range(len(way_list)-1):
@@ -211,9 +235,10 @@ class WorldGenerator(object):
             # If the two waypoints are on the same floor,
             # connect them
             if way1[2]==way2[2]:
+                print 'connecting {0} to {1}'.format(way1,way2)
                 self.connect(way1,way2)
 
-    def connect(self,pt1,pt2,direct=False):
+    def connect(self,pt1,pt2):
         """ Connects the two points with hallway tiles """
         dist = [None,None]
         # The 0 index will signify x
@@ -238,55 +263,44 @@ class WorldGenerator(object):
         tile_list = []  # List of tiles to be set
         coord_list = list(pt1)  # create a mutable coord list
 
-        # Add a straight leg (or connect the points if in range)
-        if not leg_set:
+        max_loops = 20      # Max loops per leg
+        this_loop = 0
 
-            # If pt2 is a straight shot, connect directly
-            if dist[direction]==pt_dist:
-                for n in range(pt_dist):    # the distance moved along the 
-                    self.tile_append(
-                                positive,
-                                tile_list,
-                                coord_list,
-                                direction
-                                )
+        while True:
+            # Pathbuilder exit conditions:
+            if this_loop >= max_loops:
+                print ' - maximum steps for this leg (pathbuilder)'
+                break
+            if tuple(coord_list)==pt2:
+                # Arrived at destination waypoint
+                break
 
-
-            # Else the leg will bend to connect 
+            # Final leg detector - executes when a point is reached
+            # on the same axis (x/y) and within 2 tiles.  Directly
+            # connects to the endpoint
+            if coord_list[0]==pt2[0] and abs(coord_list[1]-pt2[1])<3:
+                idx = 1     # axis of motion = x
+                rng = coord_list[1]-pt2[1]
+            elif coord_list[1]==pt2[1] and abs( coord_list[0]-pt2[0])<3:
+                idx = 0     # axis of motion = x
+                rng = coord_list[0]-pt2[0]
             else:
-                while this_leg > 0:
-                    if coord_list[direction]==pt2[direction]:
-                        cond = coord_list[not_direction]<pt2[not_direction]
-                        self.tile_append(
-                                    cond,
-                                    tile_list,
-                                    coord_list,
-                                    not_direction
-                                    )
-                    else:
+                rng = False
 
-                        self.tile_append(
-                                    positive,
-                                    tile_list,
-                                    coord_list,
-                                    direction
-                                    )
-                    this_leg -= 1
-            for tile in tile_list:
-                self.grid[tile]=WorldTile.hallway
+            if rng:
+                for n in range(rng):
+                    coord = coord_list[idx]+n
+                    tile_list.append(coord)
+                break
+            # If not the final leg, randomly select a direction
+            idx,val = self.path_avail_dirs(coord_list,[1,'E','U','D'],True)
+            coord_list[idx]+=val
+            tile_list.append(tuple(coord_list))
+            this_loop +=1
 
-    def tile_append(self,condition,tile_list,coord_list,index):
-        #  Takes [condition] and adds a point to the list in that dir
-        #  index denotes the axis (0 = x, 1 = y)
-        if condition:
-            offset = 1
-        else:
-            offset = -1
-        coord_list[index]+=offset
-
-        tile_list.append(       # axis of motion=distance to pt2
-                  (coord_list[0],coord_list[1],coord_list[2])
-                  )
+        # Fill the resulting point list with hallways in the grid
+        for tile in tile_list:
+            self.grid[tile]=WorldTile.hallway
 
     def build_waypoints(self,w):
         retval = []
@@ -299,12 +313,13 @@ class WorldGenerator(object):
 
             # Fill other waypoints
             for way in range(w):
-                x = random.randint(0,self.dim_x)
-                y = random.randint(0,self.dim_y)
+                x = random.randint(1,self.dim_x-1)
+                y = random.randint(1,self.dim_y-1)
+                print 'waypoint added at {0}'.format((x,y,z))
                 retval.append((x,y,z))
 
             # Set ending waypoint for the floor
-            if z == self.dim_z-1:
+            if z == self.dim_z:
                 retval.append(self.end)
             else:
                 retval.append(self.find_tile(z,WorldTile.descent_point))
