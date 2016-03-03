@@ -5,6 +5,7 @@ import math
 import random
 import sys
 import pokeygame
+from pokeygame import ColorIze as color
 from pokeygame import WorldTile
 
 class WorldGenerator(object):
@@ -76,7 +77,10 @@ class WorldGenerator(object):
                 condition = False
 
             if condition:
-                self.grid[x_test,y_test,z]=WorldTile.entry_point
+                self.grid[x_test,y_test,z]=color(
+                                            WorldTile.entry_point,
+                                            [color.GREEN,color.BOLD],
+                                            ).colorized
                 self.start = (x_test,y_test,z)
                 print 'Entry point set : {0}'.format((x_test,y_test,z))
                 break
@@ -107,53 +111,95 @@ class WorldGenerator(object):
                 # and move to next level :
 
                 # Add a descent point in the grid template
-                self.grid[x_test,y_test,i]=WorldTile.descent_point
+                self.grid[x_test,y_test,i]=color(
+                                    WorldTile.descent_point,
+                                    [color.CYAN,color.BOLD],
+                                    ).colorized
                 print 'Descent Point Set {0}'.format((x_test,y_test,i))
 
                 # Add corresponding ascent point on the next floor
-                self.grid[x_test,y_test,i+1]=WorldTile.ascent_point
+                self.grid[x_test,y_test,i+1]=color(
+                                    WorldTile.ascent_point,
+                                    [color.RED,color.BOLD],
+                                    ).colorized
                 print 'Ascent Point Set {0}'.format((x_test,y_test,i+1))
                 i += 1
 
-    def path_avail_dirs(self,position,impediments,rand=False):
+    def path_avail_dirs(self,position,impediments,dest=None,rand=False):
         # Processes available directions, returns a random direction
         # if the random flag is passed, else returns the direction
         # list
 
-        imp = impediments
+        imp = ''.join(str(i) for i in impediments)
         p = position
+
+        # Define directions
+        north = [0,1]
+        south = [0,-1]
+        east = [1,1]
+        west = [1,-1]
+
+        if dest is not None:
+            prefer_y = [True] if p[0]==dest[0] else [False]
+            prefer_x = [True] if p[1]==dest[1] else [False]
+
+            if p[0]<dest[0] and prefer_x: prefer_x.append(1)
+            if p[0]>dest[0] and prefer_x: prefer_x.append(-1)
+            if p[1]<dest[1] and prefer_y: prefer_y.append(1)
+            if p[1]>dest[1] and prefer_y: prefer_y.append(-1)
+
+            # Reduce compared value for more direct paths
+            if random.randint(0,100)>50:
+                apply_preference=True
+            else:
+                apply_preference=False
+
         # impediments will contain impassable vals
         # x-axis
         if p[0]+1>=self.dim_x:
-            north = False
+            north.append(False)
         else:
-            north = True if self.grid[p[0]+1,p[1],p[2]] not in imp else False
+            north.append(
+                True if self.grid[p[0]+1,p[1],p[2]] not in imp else False
+                )
+
         if p[0]-1<=0:
-            south = False
+            south.append(False)
         else:
-            south = True if self.grid[p[0]-1,p[1],p[2]] not in imp else False
+            south.append(
+                True if self.grid[p[0]-1,p[1],p[2]] not in imp else False
+                )
 
         # y-axis
         if p[1]+1>=self.dim_y:
-            east = False
+            east.append(False)
         else:
-            east = True if self.grid[p[0],p[1]+1,p[2]] not in imp else False
+            east.append(
+                True if self.grid[p[0],p[1]+1,p[2]] not in imp else False
+                )
         if p[1]-1<=0:
-            west = False
+            west.append(False)
         else:
-            west = True if self.grid[p[0],p[1]-1,p[2]] not in imp else False
+            west.append(
+                True if self.grid[p[0],p[1]-1,p[2]] not in imp else False
+                )
 
         dirs = [north,south,east,west]
         assert any(dirs),'Pathing : No available moves!'
 
         if not rand:
             return dirs
+        elif apply_preference and (prefer_x or prefer_y):
+            if prefer_x[0]:
+                return 0,prefer_x[1]
+            elif prefer_y:
+                return 1,prefer_y[1]
         else:
             # Randomly selects an available move and returns it
             while True:
                 roll = random.randint(0,3)
                 dirs = [north,south,east,west]
-                if dirs[roll]:
+                if dirs[roll][2]:
                     if roll in [0,1]:
                         idx = 0
                         val = 1 if roll==0 else -1
@@ -174,8 +220,12 @@ class WorldGenerator(object):
         retval = False
         for y in range(self.dim_y):
             for x in range(self.dim_x):
-                if self.grid[x,y,z]==tile_type:
-                    retval = (x,y,z)
+                try:
+                    if tile_type in self.grid[x,y,z]:
+                        retval = (x,y,z)
+                except TypeError:
+                    if self.grid[x,y,z]==tile_type:
+                        retval = (x,y,z)
         return retval
 
     def set_exit_point(self):
@@ -205,7 +255,10 @@ class WorldGenerator(object):
 
                 test = (x_test,y_test,self.dim_z)
                 if self.calc_dist(asc,test)>=self.min_dist:
-                    self.grid[test]=WorldTile.exit_point
+                    self.grid[test]=color(
+                                    WorldTile.exit_point,
+                                    [color.GREEN,color.BOLD],
+                                    ).colorized
                     self.end = test
                     print 'Exit Point Set {0}'.format(tuple(test))
                     return True
@@ -263,7 +316,7 @@ class WorldGenerator(object):
         tile_list = []  # List of tiles to be set
         coord_list = list(pt1)  # create a mutable coord list
 
-        max_loops = 20      # Max loops per leg
+        max_loops = 30      # Max loops per leg
         this_loop = 0
 
         while True:
@@ -293,14 +346,21 @@ class WorldGenerator(object):
                     tile_list.append(coord)
                 break
             # If not the final leg, randomly select a direction
-            idx,val = self.path_avail_dirs(coord_list,[1,'E','U','D'],True)
+            idx,val = self.path_avail_dirs(
+                                coord_list,
+                                [1,'E','U','D'],
+                                pt2,
+                                True)
             coord_list[idx]+=val
             tile_list.append(tuple(coord_list))
             this_loop +=1
 
         # Fill the resulting point list with hallways in the grid
         for tile in tile_list:
-            self.grid[tile]=WorldTile.hallway
+            self.grid[tile]=color(
+                            WorldTile.hallway,
+                            [color.BLUE,color.BOLD],
+                            ).colorized
 
     def build_waypoints(self,w):
         retval = []

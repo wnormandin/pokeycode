@@ -254,12 +254,12 @@ class WorldTile(object):
 
     """ Class to contain world tile objects """
 
-    wall = 0
-    hallway = 1
-    door = 2
-    dungeon = 3
-    shop = 4
-    boss = 5
+    wall = '0'
+    hallway = '1'
+    door = '2'
+    dungeon = '3'
+    shop = '4'
+    boss = '5'
 
     entry_point = 'S'
     descent_point = 'D'
@@ -632,6 +632,34 @@ class Player(object):
         else:
             setattr(self,status_att,status_val)
 
+class ColorIze(object):
+    """ Allows colorizing (in available terminals)"""
+
+    PURPLE = '\033[95m'
+    CYAN = '\033[96m'
+    DARKCYAN = '\033[36m'
+    BLUE = '\033[94m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    RED = '\033[91m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+    END = '\033[0m'
+
+    def __init__(self,val,opts):
+        """ Takes the val, and wraps it in the passed opts """
+
+        assert isinstance(opts,(list,tuple)), 'Invalid color option list!'
+
+        retval = ''
+        for opt in opts:
+            retval += opt
+
+        retval += '{}{}'.format(val,ColorIze.END)
+
+        self.colorized = retval
+
+        return
 
 class StatusEffect(object):
     """ Temporary status effects on players """
