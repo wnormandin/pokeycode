@@ -266,10 +266,14 @@ class WorldTile(object):
     exit_point = 'E'
     ascent_point = 'U'
 
+    tile_set = [wall,hallway,door,dungeon,shop,boss,
+                entry_point,descent_point,exit_point,
+                ascent_point]
+
     def __init__(self,tile_name,tile_type,**kwargs):
         self.tile_name = tile_name
         self.tile_type = tile_type
-        assert self.tile_type in range(5),'Invalid Tile Type'
+        assert self.tile_type in WorldTile.tile_set,'Invalid Tile Type'
 
         # kwarg defaults
         for pair in [
