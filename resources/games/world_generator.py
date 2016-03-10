@@ -55,9 +55,12 @@ class WorldGenerator(object):
         self.boss_level = dim_z     # Boss on lowest level
         self.logger.debug('\tBoss on {}'.format(self.boss_level))
 
-        self.dim_x = dim_x
-        self.dim_y = dim_y
-        self.dim_z = dim_z
+        self.logger.debug("\tdim_x={}".format(dim_x))
+        self.logger.debug("\tdim_y={}".format(dim_y))
+        self.logger.debug("\tdim_z={}".format(dim_z))
+        self.dim_x = int(dim_x)
+        self.dim_y = int(dim_y)
+        self.dim_z = int(dim_z)
 
         self.min_dist = int(((self.dim_x+self.dim_y)/2)*.75)   #3/4 the avg
         self.logger.debug(
@@ -94,10 +97,16 @@ class WorldGenerator(object):
             retval+='\tFloor -{0}-\n'.format(z)
             for y in range(0,self.dim_y):
                 for x in range(0,self.dim_x):
-                    if self.grid[x,y,z]=='0':
+                    if self.grid[x,y,z][0]=='0':
                         retval += '. '
                     else:
-                        retval+= '.{0}'.format(self.grid[x,y,z])
+                        if self.grid[x,y,z][1] is not None:
+                            retval+=color(
+                                    '.{0}'.format(self.grid[x,y,z][0]),
+                                    self.grid[x,y,z][1]
+                                    ).colorized
+                        else:
+                            retval+= '.{0}'.format(self.grid[x,y,z][0])
                 retval+='\n'
 
         return retval
@@ -111,7 +120,8 @@ class WorldGenerator(object):
         for z in range(0,self.dim_z+1):
             for y in range(0,self.dim_y):
                 for x in range(0,self.dim_x):
-                    grid[x,y,z]=WorldTile.wall
+                    # Grid format [tile_value,color(None if normal color)]
+                    grid[x,y,z]=[WorldTile.wall,None]
 
         self.logger.debug('\tFilled {} tiles'.format(len(grid)))
         self.logger.debug('\tTook {}s'.format(time.clock()-start))
@@ -144,10 +154,11 @@ class WorldGenerator(object):
                 condition = False
 
             if condition:
-                self.grid[x_test,y_test,z]=color(
+                self.grid[x_test,y_test,z]=[
                                             WorldTile.entry_point,
-                                            [color.GREEN,color.BOLD],
-                                            ).colorized
+                                            [color.GREEN,color.BOLD]
+                                            ]
+
                 self.start = (x_test,y_test,z)
                 self.logger.debug('\tEntry point set : {0}'.format((
                                                         x_test,y_test,z
@@ -187,19 +198,19 @@ class WorldGenerator(object):
                 # and move to next level :
 
                 # Add a descent point in the grid template
-                self.grid[x_test,y_test,i]=color(
+                self.grid[x_test,y_test,i]=[
                                     WorldTile.descent_point,
-                                    [color.CYAN,color.BOLD],
-                                    ).colorized
+                                    [color.CYAN,color.BOLD]
+                                    ]
                 self.logger.debug(
                        '\tDescent Point Set {0}'.format((x_test,y_test,i))
                        )
 
                 # Add corresponding ascent point on the next floor
-                self.grid[x_test,y_test,i+1]=color(
+                self.grid[x_test,y_test,i+1]=[
                                     WorldTile.ascent_point,
-                                    [color.RED,color.BOLD],
-                                    ).colorized
+                                    [color.RED,color.BOLD]
+                                    ]
                 self.logger.debug(
                        '\tAscent Point Set {0}'.format((x_test,y_test,i+1))
                        )
@@ -247,14 +258,14 @@ class WorldGenerator(object):
             north.append(False)
         else:
             north.append(
-                True if self.grid[p[0]+1,p[1],p[2]] not in imp else False
+                True if self.grid[p[0]+1,p[1],p[2]][0] not in imp else False
                 )
 
         if p[0]-1<=0:
             south.append(False)
         else:
             south.append(
-                True if self.grid[p[0]-1,p[1],p[2]] not in imp else False
+                True if self.grid[p[0]-1,p[1],p[2]][0] not in imp else False
                 )
 
         # y-axis
@@ -262,13 +273,13 @@ class WorldGenerator(object):
             east.append(False)
         else:
             east.append(
-                True if self.grid[p[0],p[1]+1,p[2]] not in imp else False
+                True if self.grid[p[0],p[1]+1,p[2]][0] not in imp else False
                 )
         if p[1]-1<=0:
             west.append(False)
         else:
             west.append(
-                True if self.grid[p[0],p[1]-1,p[2]] not in imp else False
+                True if self.grid[p[0],p[1]-1,p[2]][0] not in imp else False
                 )
 
         dirs = [north,south,east,west]
@@ -310,12 +321,9 @@ class WorldGenerator(object):
         retval = False
         for y in range(self.dim_y):
             for x in range(self.dim_x):
-                try:
-                    if tile_type in self.grid[x,y,z]:
-                        retval = (x,y,z)
-                except TypeError:
-                    if self.grid[x,y,z]==tile_type:
-                        retval = (x,y,z)
+                if tile_type==self.grid[x,y,z][0]:
+                    retval = (x,y,z)
+
         return retval
 
     def set_exit_point(self):
@@ -349,10 +357,10 @@ class WorldGenerator(object):
                 self.logger.debug('\tAscent point found : {}'.format(asc))
                 test = (x_test,y_test,self.dim_z)
                 if self.calc_dist(asc,test)>=self.min_dist:
-                    self.grid[test]=color(
+                    self.grid[test]=[
                                     WorldTile.exit_point,
-                                    [color.GREEN,color.BOLD],
-                                    ).colorized
+                                    [color.GREEN,color.BOLD]
+                                    ]
                     self.end = test
                     self.logger.debug(
                            '\tExit Point Set {0}'.format(tuple(test)
@@ -377,11 +385,11 @@ class WorldGenerator(object):
         self.logger.debug(
             '\tWaypoint density : {0}'.format(waypoints_per_floor)
             )
-        way_list = self.build_waypoints(waypoints_per_floor)
+        self.way_list = self.build_waypoints(waypoints_per_floor)
 
-        for i in range(len(way_list)-1):
-            way1 = way_list[i]
-            way2 = way_list[i+1]
+        for i in range(len(self.way_list)-1):
+            way1 = self.way_list[i]
+            way2 = self.way_list[i+1]
 
             # If the two waypoints are on the same floor,
             # connect them
@@ -453,7 +461,7 @@ class WorldGenerator(object):
             # If not the final leg, randomly select a direction
             idx,val = self.path_avail_dirs(
                                 coord_list,
-                                ['1','E','U','D'],
+                                ['E','U','D','3'],
                                 pt2,
                                 True)
             coord_list[idx]+=val
@@ -463,11 +471,11 @@ class WorldGenerator(object):
         # Fill the resulting point list with hallways in the grid
         for tile in tile_list:
             try:
-                if self.grid[tile]==WorldTile.wall:
-                    self.grid[tile]=color(
+                if self.grid[tile][0]==WorldTile.wall:
+                    self.grid[tile]=[
                                     WorldTile.hallway,
-                                    [color.BLUE,color.BOLD],
-                                    ).colorized
+                                    [color.BLUE,color.BOLD]
+                                    ]
             except KeyError:
                 self.logger.error('[*] Invalid tile specified!')
                 self.logger.debug('Tile value : {}'.format(tile))
@@ -527,30 +535,42 @@ class WorldGenerator(object):
     def build_rooms(self):
         """ Builds rooms off of the paths """
 
-        for z in range(0,self.dim_z):
+        for z in range(0,self.dim_z+1):
             start, end = self.find_path_ends(z)
             for pt in (start,end):
-                self.create_room(WorldTile.dungeon,pt,3)
+                self.create_room(WorldTile.dungeon,pt,1)
+
+        for way in self.way_list:
+            self.create_room(WorldTile.dungeon,way)
 
 
-    def create_room(self,fill,center,size=None):
+    def create_room(self,fill,center,size=None,color=None):
         """ Creates a rectangle in the approximate size passed, None = random """
 
         if size is None:
-            size = random.randint(2,int((self.dimx+self.dimy)/2))
+            size = random.randint(1,2)
+
+        # Only allow overwrite of appropriate tiles
+        overwrite_allowed = (
+                            WorldTile.wall,
+                            WorldTile.hallway,
+                            WorldTile.door
+                            )
 
         # Replaces tile contents in a square around the center with fill
-        for s in range(1,size):
-            this_point = list(center)
-            for idx in [0,1]:
-                for val in [s,-s]:
-                    try:
-                        this_point[idx] += val
-                        self.grid[tuple(this_point)] = fill
-                    except KeyError:
-                        continue
-                    except:
-                        raise
+        for x_offset in range(-size,size+1):
+            for y_offset in range(-size,size+1):
+
+                # Eliminate values outside the grid
+                if center[0]+x_offset > self.dim_x-1 or center[0]+x_offset < 0:
+                    x_offset=0
+                if center[1]+y_offset > self.dim_y-1 or center[1]+y_offset < 0:
+                    y_offset=0
+
+                pt = (center[0]+x_offset,center[1]+y_offset,center[2])
+                for tile in overwrite_allowed:
+                    if tile==self.grid[pt][0]:
+                        self.grid[pt]=[fill,color]
 
     def test_paths(self):
         """ Confirms each waypoint is reachable """
@@ -576,7 +596,7 @@ class CLInvoker(object):
             start = time.clock()
             self.world = WorldGenerator(
                         self.args.debug,self.args.silent,self.args.random,
-                        self.args.fpath,self.args.conf,self.args.xdim,
+                        self.args.fpath,self.args.conf,self.args.xdim[0],
                         self.args.ydim,self.args.zdim,self.args.elastic,
                         self.args.verbose,self.logger
                         )
@@ -619,7 +639,7 @@ class CLInvoker(object):
         try:
             self.world = WorldGenerator(
                        self.args.debug,self.args.silent,self.args.random,
-                       self.args.fpath,self.args.conf,self.args.xdim,
+                       self.args.fpath,self.args.conf,self.args.xdim[0],
                        self.args.ydim,self.args.zdim,self.args.elastic,
                        self.args.verbose,self.logger
                        )
@@ -632,18 +652,18 @@ class CLInvoker(object):
         self.logger.info('[*] Saving map template')
 
         o = 'map_template = (\n'
-        for z in range(int(self.args.zdim)-1):
-            o += '\t\t(\n'
-            for y in range(int(self.args.ydim)-1):
-                o += '\t\t\t('
+        for z in range(int(self.args.zdim)):
+            o += '  (\n'
+            for y in range(int(self.args.ydim)):
+                o += '    ('
                 tmp = ''
-                for x in range(int(self.args.xdim)-1):
-                    tmp += '{},'.format(self.world.grid[x,y,z])
+                for x in range(int(self.args.xdim[0])):
+                    tmp += '{},'.format(self.world.grid[x,y,z][0])
                 o += tmp[:-1]
                 o += '),\n'
-            o += '\t\t),\n'
+            o += '  ),\n'
 
-        o += '\t)\n'
+        o += ')\n'
 
         try:
             with open(self.args.fpath,'w') as outfile:
@@ -669,12 +689,12 @@ class CLInvoker(object):
             ("-d","--debug","enable debug mode",'store_true'),
             ("-s","--silent","silent mode (no output)",'store_true'),
             ("-r","--random","generates a randomized map",'store_true'),
-            ("-f","--fpath","specify output file",None,'world_gen_output.py',1),
-            ("-c","--conf","specify conf file",None,'world_gen.conf',1),
-            ("-x","--xdim","map x dimension",None,25,1),
-            ("-y","--ydim","map y dimension",None,25,1),
-            ("-z","--zdim","map floor depth",None,3,1),
-            ('-e','--elastic','specify flexible dimensions',None,3,1),
+            ("-f","--fpath","specify output file",None,'world_gen_output.py',1,str),
+            ("-c","--conf","specify conf file",None,'world_gen.conf',1,str),
+            ("-x","--xdim","map x dimension",None,25,1,int),
+            ("-y","--ydim","map y dimension",None,25,1,int),
+            ("-z","--zdim","map floor depth",None,3,1,int),
+            ('-e','--elastic','specify flexible dimensions',None,3,1,int),
             ('-v','--verbose','enable verbose messages','store_true')
             ]
 
@@ -686,7 +706,11 @@ class CLInvoker(object):
         # Parse Parameters (values)
         self.logger.debug('\tAdding parameters')
         for p in [arg for arg in arg_list if arg[3] is None]:
-            parser.add_argument(p[0],p[1],help=p[2],default=p[4],nargs=p[5])
+            parser.add_argument(p[0],p[1],
+                                help=p[2],
+                                default=p[4],
+                                nargs=p[5],
+                                type=p[6])
 
         self.logger.debug('\tParsing arguments')
         self.args=parser.parse_args()
