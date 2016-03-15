@@ -9,16 +9,17 @@ import argparse
 import inspect
 import logging
 import time
+from pathfinder import Pathfinder, GraphGrid
 from pokeygame import ColorIze as color
 from pokeygame import WorldTile
 from pokeyworks import setup_logger as logger
 
-class WorldGenerator(object):
+class WorldGenerator:
 
     """ Generates worlds based on the config parameters """
 
     def __init__(
-                self,           # The World Generator object
+                self,           # World Generator
                 debug=False,    # Debug mode
                 silent=False,   # Silent mode
                 rand=False,     # Random mode
@@ -29,9 +30,28 @@ class WorldGenerator(object):
                 dim_z=3,        # z dimension range
                 flex_limit=0,   # Maximum dimension fluctuation
                 verbose=False,  # Verbose mode
-                app_logger=None # Optional passed logger
+                app_logger=None,# Optional passed logger
+                room_variance=2 # Room size variance
                 ):
-        """ WorldGenerator creates a world_generation_template """
+        """ WorldGenerator creates a world_template """
+
+        # The WorldGenerator.grid template can be read directly
+        # by importing as a module, or loaded from the output
+        # of the command-line invoked menu.  Output format:
+        #
+        #   map_template = (((t...),...(t'...))...
+        #
+        # Where T are tile type codes for your interpreter
+        # or WorldTile tile types if using pokeygame
+        #
+        # Template features :
+        #
+        #   Randomized templates of any integer dimension can be generated.
+        # A series of waypoints are generated randomly across each level,
+        # which are then connected by hallway.  Rooms are generated at the
+        # waypoints of varying sizes (control by setting room_variance),
+        # and a pathfinding algorithm ensures each level is passable before
+        # being returned.
 
         start = time.clock()
 
@@ -97,16 +117,17 @@ class WorldGenerator(object):
             retval+='\tFloor -{0}-\n'.format(z)
             for y in range(0,self.dim_y):
                 for x in range(0,self.dim_x):
-                    if self.grid[x,y,z][0]=='0':
+                    if self.grid[x,y,z][0]==WorldTile.wall:
                         retval += '. '
                     else:
+                        retval += '.'
                         if self.grid[x,y,z][1] is not None:
                             retval+=color(
-                                    '.{0}'.format(self.grid[x,y,z][0]),
+                                    '{0}'.format(self.grid[x,y,z][0]),
                                     self.grid[x,y,z][1]
                                     ).colorized
                         else:
-                            retval+= '.{0}'.format(self.grid[x,y,z][0])
+                            retval+= '{0}'.format(self.grid[x,y,z][0])
                 retval+='\n'
 
         return retval
@@ -399,30 +420,11 @@ class WorldGenerator(object):
 
     def connect(self,pt1,pt2):
         """ Connects the two points with hallway tiles """
-        dist = [None,None]
-        # The 0 index will signify x
-        dist[0] = pt1[0]-pt2[0]
-        # 1 signifies y
-        dist[1] = pt1[1]-pt2[1]
-
-        # Calculate the distance between the points (for max leg length)
-        pt_dist = int(math.sqrt(dist[0]**2+dist[1]**2))
-        this_leg = pt_dist
-
-        # Set direction based on axis with maximum remaining distance
-        direction = 0 if dist[0] > dist[1] else 1
-        # Determine whether direction of motion is positive or negative
-        positive = True if pt1[direction] < pt2[direction] else False
-
-        # Set the opposing dir (absolute value of 1-1=0, 0-1=1)
-        not_direction = abs(direction-1)
-
-        leg_set = False     # Flag to catch when a feature is added
 
         tile_list = []  # List of tiles to be set
         coord_list = list(pt1)  # create a mutable coord list
 
-        max_loops = 30      # Max loops per leg
+        max_loops = 35      # Max loops per leg
         this_loop = 0
 
         while True:
@@ -574,7 +576,64 @@ class WorldGenerator(object):
 
     def test_paths(self):
         """ Confirms each waypoint is reachable """
-        pass
+
+        for z in range(self.dim_z+1):
+            # Create the graph, impediments are walls(0) and locked doors(L)
+
+            imp = []
+
+            this_floor = [None for y in range(self.dim_y)]
+            for y in range(self.dim_y):
+                this_floor[y]=[None for x in range(self.dim_x)]
+                for x in range(self.dim_x):
+                    this_floor[y][x]=self.grid[x,y,z][0]
+
+            graph = GraphGrid(this_floor)
+
+            # Default impediments are wall(0) and locked doors(L)
+            imp=[(a,b) for a,b,c in self.grid if self.grid[a,b,z][0] in [0,'0','L']]
+
+            # Set the list of impassable points
+            graph.impassable = imp
+
+            # Set the floor start and end points
+            start,end = self.find_path_ends(z)
+
+            self.logger.info('[*] Testing the path from {} to {}'.format(start,
+                                                                         end))
+
+            # Initialize the path tester, as a_star for best path
+            path_tester=Pathfinder(Pathfinder.gb_first)
+            path_tester.g = graph
+            path_tester.start = start[:2]
+            path_tester.dest = end[:2]
+            path = path_tester.execute()
+
+            if not path:
+                self.logger.error("Invalid pathfinding algorithm")
+            else:
+                for (x,y) in path:
+                    val=path[x,y]
+                    if val is not None:
+                        if self.grid[x,y,z][0] not in ['U','D','S','E']:
+                            self.grid[val[0],val[1],z][1]=[color.WHITE_ON_BLUE]
+                #for x,y in path[1]:
+                    #print 'coord={}'.format(x)
+                    #print 'score={}'.format(y)
+                    #if self.grid[x,y,z][0] not in ['U','D','S','E']:
+                        #self.grid[x,y,z][1]=[color.WHITE_ON_BLUE]
+
+    def color_test(self):
+        """ prints table of formatted text format options """
+
+        for style in xrange(8):
+            for fg in xrange(30,38):
+                s1 = ''
+                for bg in xrange(40,48):
+                    fmt = ';'.join([str(style), str(fg), str(bg)])
+                    s1 += '\x1b[%sm %s \x1b[0m' % (fmt, fmt)
+                print s1
+            print '\n'
 
 class CLInvoker(object):
     """ Class to handle command line execution """
@@ -596,7 +655,7 @@ class CLInvoker(object):
             start = time.clock()
             self.world = WorldGenerator(
                         self.args.debug,self.args.silent,self.args.random,
-                        self.args.fpath,self.args.conf,self.args.xdim[0],
+                        self.args.fpath,self.args.conf,self.args.xdim,
                         self.args.ydim,self.args.zdim,self.args.elastic,
                         self.args.verbose,self.logger
                         )
@@ -626,7 +685,7 @@ class CLInvoker(object):
 
         if ch.lower() not in [item[1] for item in menu_items]:
             print 'Invalid selection : ', ch.lower()
-            raw_input('Press any key to continue (Ctrl+C exits)')
+            raw_input('Press any key to continue (Ctrl+C exits)\n')
         else:
             for item in menu_items:
                 if ch.lower()==item[1]:
@@ -639,7 +698,7 @@ class CLInvoker(object):
         try:
             self.world = WorldGenerator(
                        self.args.debug,self.args.silent,self.args.random,
-                       self.args.fpath,self.args.conf,self.args.xdim[0],
+                       self.args.fpath,self.args.conf,self.args.xdim,
                        self.args.ydim,self.args.zdim,self.args.elastic,
                        self.args.verbose,self.logger
                        )
@@ -657,7 +716,7 @@ class CLInvoker(object):
             for y in range(int(self.args.ydim)):
                 o += '    ('
                 tmp = ''
-                for x in range(int(self.args.xdim[0])):
+                for x in range(int(self.args.xdim)):
                     tmp += '{},'.format(self.world.grid[x,y,z][0])
                 o += tmp[:-1]
                 o += '),\n'
@@ -689,12 +748,12 @@ class CLInvoker(object):
             ("-d","--debug","enable debug mode",'store_true'),
             ("-s","--silent","silent mode (no output)",'store_true'),
             ("-r","--random","generates a randomized map",'store_true'),
-            ("-f","--fpath","specify output file",None,'world_gen_output.py',1,str),
-            ("-c","--conf","specify conf file",None,'world_gen.conf',1,str),
-            ("-x","--xdim","map x dimension",None,25,1,int),
-            ("-y","--ydim","map y dimension",None,25,1,int),
-            ("-z","--zdim","map floor depth",None,3,1,int),
-            ('-e','--elastic','specify flexible dimensions',None,3,1,int),
+            ("-f","--fpath","specify output file",None,'world_gen_output.py',str),
+            ("-c","--conf","specify conf file",None,'world_gen.conf',str),
+            ("-x","--xdim","map x dimension",None,25,int),
+            ("-y","--ydim","map y dimension",None,25,int),
+            ("-z","--zdim","map floor depth",None,3,int),
+            ('-e','--elastic','specify flexible dimensions',None,3,int),
             ('-v','--verbose','enable verbose messages','store_true')
             ]
 
@@ -709,8 +768,7 @@ class CLInvoker(object):
             parser.add_argument(p[0],p[1],
                                 help=p[2],
                                 default=p[4],
-                                nargs=p[5],
-                                type=p[6])
+                                type=p[5])
 
         self.logger.debug('\tParsing arguments')
         self.args=parser.parse_args()

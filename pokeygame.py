@@ -639,6 +639,10 @@ class Player(object):
 class ColorIze(object):
     """ Allows colorizing (in available terminals)"""
 
+    BLACK_ON_GREEN = '\x1b[1;30;42m'
+    BLACK_ON_RED = '\x1b[0;30;41m'
+    MAGENTA_ON_BLUE = '\x1b[1;35;44m'
+    WHITE_ON_BLUE = '\x1b[5;37;44m'
     PURPLE = '\033[95m'
     CYAN = '\033[96m'
     DARKCYAN = '\033[36m'
