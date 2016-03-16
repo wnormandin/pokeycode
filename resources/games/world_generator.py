@@ -31,7 +31,8 @@ class WorldGenerator:
                 flex_limit=0,   # Maximum dimension fluctuation
                 verbose=False,  # Verbose mode
                 app_logger=None,# Optional passed logger
-                room_variance=2 # Room size variance
+                room_variance=2,# Room size variance
+                post_check=False # Automatic post-generation check
                 ):
         """ WorldGenerator creates a world_template """
 
@@ -81,7 +82,7 @@ class WorldGenerator:
         self.dim_x = int(dim_x)
         self.dim_y = int(dim_y)
         self.dim_z = int(dim_z)
-
+        self.post_done = False  # Flag to indicate post-generation path check
         self.min_dist = int(((self.dim_x+self.dim_y)/2)*.75)   #3/4 the avg
         self.logger.debug(
                 '\tMinimum waypoint distance : {}'.format(self.min_dist)
@@ -105,8 +106,9 @@ class WorldGenerator:
         self.build_paths()
         self.build_rooms()
 
-        self.logger.info('[*] Testing map pathing')
-        self.test_paths()
+        if post_check:
+            self.logger.info('[*] Testing map pathing')
+            self.test_paths()
 
         self.logger.info('[*] Map generation complete')
         self.logger.debug('\tTook {}s'.format(time.clock()-start))
@@ -657,7 +659,7 @@ class CLInvoker(object):
                         self.args.debug,self.args.silent,self.args.random,
                         self.args.fpath,self.args.conf,self.args.xdim,
                         self.args.ydim,self.args.zdim,self.args.elastic,
-                        self.args.verbose,self.logger
+                        self.args.verbose,self.logger,self.args.path
                         )
             self.logger.debug('\tWorld generation took {}s'.format(
                                                         time.clock()-start
@@ -671,8 +673,12 @@ class CLInvoker(object):
     def menu(self):
         """ Main menu """
 
+        post = "done!" if self.world.post_done else "not done"
+
         menu_items = [
                 ('Show [m]ap','m',self.show_map),
+                ('[C]heck level paths ({})'.format(post),'c',
+                                                    self.world.test_paths),
                 ('[R]egenerate','r',self.regenerate),
                 ('[S]ave ({})'.format(self.args.fpath),'s',self.save_map),
                 ('[Q]uit','q',sys.exit)
@@ -700,7 +706,7 @@ class CLInvoker(object):
                        self.args.debug,self.args.silent,self.args.random,
                        self.args.fpath,self.args.conf,self.args.xdim,
                        self.args.ydim,self.args.zdim,self.args.elastic,
-                       self.args.verbose,self.logger
+                       self.args.verbose,self.logger,self.args.path
                        )
         except TypeError:
             self.world = WorldGenerator()
@@ -754,7 +760,8 @@ class CLInvoker(object):
             ("-y","--ydim","map y dimension",None,25,int),
             ("-z","--zdim","map floor depth",None,3,int),
             ('-e','--elastic','specify flexible dimensions',None,3,int),
-            ('-v','--verbose','enable verbose messages','store_true')
+            ('-v','--verbose','enable verbose messages','store_true'),
+            ('-p','--path','perform automatic map path validation','store_true')
             ]
 
         # Parse Flags (boolean)
