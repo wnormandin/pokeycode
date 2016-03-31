@@ -75,27 +75,26 @@ def chk_deps(mods):
 #		https://docs.python.org/2/library/logging.html#logger-objects
 #***********************************************************************
 
-def setup_logger(name, level, lpath='./tmp/last_run.log'):
+def setup_logger(name, level, lpath='./tmp/last_run.log',fpath=__name__):
+
+    
 
 	# Get the logger and set the level
 	logger = logging.getLogger(name)
 	logger.setLevel(level)
-		
 	# Create the formatters
 	file_formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(module)s >> %(message)s')
 	cons_formatter = logging.StreamHandler('%(message)s')
-		
 	# Create the handlers
 	cons_handler = logging.StreamHandler(sys.stdout)
 	cons_handler.setFormatter(cons_formatter)
 	logger.addHandler(cons_handler)
-		
 	if level==logging.DEBUG:
 		# Includes current run information if level = logging.DEBUG
-		f=open(resource_path(lpath),'w+')
+		f=open(resource_path(__file__,lpath),'w+')
 		f.close()
 
-		last_run = logging.FileHandler(resource_path(lpath), 'w')
+		last_run = logging.FileHandler(resource_path(__file__,lpath), 'w')
 		last_run.setFormatter(file_formatter)
 		logger.addHandler(last_run)
 		
@@ -124,8 +123,8 @@ def valid_date(s):
 		return False
 		
 # Return path to a resource based on relative path passed
-def resource_path(rel_path):
-	dir_of_py_file = os.path.dirname(__file__)
+def resource_path(fpath,rel_path):
+	dir_of_py_file = os.path.dirname(fpath)
 	rel_path_to_resource = os.path.join(dir_of_py_file, rel_path)
 	abs_path_to_resource = os.path.abspath(rel_path_to_resource)
 	return abs_path_to_resource
