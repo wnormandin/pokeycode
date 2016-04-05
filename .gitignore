@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Linux swap files
+*.swp
 # C extensions
 *.so
 

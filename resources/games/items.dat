@@ -1,4 +1,0 @@
-name%size%value%attack%defense%focus%description%effect
-TEXT%TEXT%INTEGER%INTEGER%INTEGER%INTEGER%TEXT%TEXT
-1%1%0%0%0%0%1%0
-test item%small%1%1%1%1%A Test Item%NULL

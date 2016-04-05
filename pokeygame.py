@@ -11,6 +11,7 @@ from curses import panel
 
 # Custom modules
 import pokeyworks as fw
+from resources.games import *
 from pokeywins import PokeyMenu
 
 class PokeyGame(object):
@@ -85,7 +86,6 @@ class PokeyGame(object):
         self.stdscreen = screen
         self.show_menu()
 
-
     def config_init(self):
         """ Pulls certain values, if they exist, from the game config """
 
@@ -126,103 +126,6 @@ class PokeyGame(object):
                 self.logger.error(e_string)
                 self.failsafe()
                 sys.exit(1)
-
-    def load_game(self):
-        """ Loads the various object files into the database """
-
-        dat_list = [
-                    'items'#,
-                    #'skills',
-                    #'mobs',
-                    #'tiles',
-                    #'classes'
-                    ]
-
-        self.db_con_open()
-        for item in dat_list:
-            item_path = '/'.join([
-                            self.conf.dat_base_path[0],
-                            '{}.dat'.format(item)
-                            ])
-
-            with open(item_path,'rb') as datfile:
-                header_row = datfile.readline().rstrip().split('%')
-                str_sql = "CREATE TABLE {0}".format(item)
-                str_sql += " ( id INTEGER PRIMARY KEY,"
-                data_types = datfile.readline().rstrip('\n').split('%')
-                allow_null = datfile.readline().rstrip('\n').split('%')
-
-                for col in range(len(header_row)):
-                    str_sql += ' {0} {1}'.format(
-                                                    header_row[col],
-                                                    data_types[col]
-                                                    )
-
-                    if allow_null[col]=='0':
-                        str_sql += ','
-                    else:
-                        str_sql += ' NOT NULL, '
-
-                str_sql = str_sql.strip(',')    # Trim the trailing comma
-                str_sql += ');'
-
-                print str_sql
-                self.dbcon.execute(str_sql)
-                file_data = datfile.readlines()
-
-                for row in file_data:
-                    row = row.rstrip('\n').split('%')
-                    vals = ''
-                    str_sql = 'INSERT INTO {0} '.format(item)
-
-                    for i in range(len(header_row)):
-
-                        if data_types[i]=='TEXT' and row[i] != 'NULL':
-                            vals += '"{0}", '.format(row[i])
-                        else:
-                            vals += '{0}, '.format(row[i])
-
-                    vals = vals.rstrip(', ')
-
-                    str_sql += 'VALUES (NULL, {0});'.format(vals)
-
-                    print str_sql
-                    self.dbcon.execute(str_sql)
-                    self.cursor = self.dbcon.cursor()
-
-        self.db_con_close()
-
-    def failsafe(self,e=None):
-        """ Game failsafe, reverts to original state, discards
-        changes to the database and/or files, closes any open
-        files or connections """
-
-        try:
-            self.dbcon.close()
-            print "\tThe database connection was killed"
-        except:
-            pass
-
-    def db_con_open(self):
-
-        #print fw.resource_path(self.conf.database_path[0])
-
-        self.dbcon = sqlite3.connect(fw.resource_path(
-                                        self.conf.database_path[0]))
-
-    def db_con_close(self):
-        self.cursor.close()
-        self.dbcon.close()
-
-    def db_execute(self,str_sql):
-        """ Runs the passed SQL command against the database and
-        returns the resulting dataset or return code """
-
-        if self.dbcon:
-            return self.dbcon.execute(str_sql)
-        else:
-            raise AssertionError('Database not connected!')
-            return False
 
     def curses_print_map(self):
         """ Prints the map grid (Starts on floor 1) """
@@ -421,12 +324,59 @@ class PokeyWorld:
         # grid(x,y,z)[1]: A list of ASCII color or format codes for ColorIze
         # grid(x,y,z)[2]: The tile object
 
-    def build_rooms():
-        
+        self.t_count = 0    # Tile count, increment for each tile added
+        self.build_start = time.clock()
+        self.logger.info("[*] Starting world building script")
 
-    def build_doors():
+        script_list = [
+                    self.build_boss_room,
+                    self.build_rooms,
+                    self.build_halls,
+                    self.build_doors,
+                    self.build_chests,
+                    self.build_traps,
+                    self.build_mobs,
+                    self.build_npcs
+                    ]
+        for func in script_list:
+            self.logger.debug("\tRunning {}".format(func.__name__))
+            if not func():
+                e_text = "Build script failed : {}".format(func.__name__)
+                raise AssertionError(e_text)
 
-    def boss_room(self):
+        self.logger.info("[*] World building script completed")
+        self.logger.debug("\tTiles Placed : {}".format(self.t_count))
+        build_time = time.clock()-self.build_start
+        self.logger.debug("\tTook {}s".format(build_time))
+        self.logger.debug("\tTiles/s : {}".format(t_count/build_time))
+
+    def build_rooms(self):
+        return self.room_fill(WorldTile.dungeon,tiles.Dungeon)
+
+    def room_fill(self,tile_type,tile,replace=None):
+        try:
+            for z in self.dim_z:
+                for y in self.dim_y:
+                    for x in self.dim_x:
+                        if len(self.world_gen.grid[x,y,z])==2:
+                            if self.world_gen.grid[x,y,z][0]==tile_type:
+                                self.world_gen.grid[x,y,z][2]==tile()
+                                if replace is not None:
+                                    self.world_gen.grid[x,y,z][0]=replace
+                                self.t_count += 1
+            retval = True
+        except:
+            retval = False
+            raise
+        return retval
+
+    def build_doors(self):
+        return True
+
+    def build_halls(self):
+        return self.room_fill(WorldTile.hallway,tiles.Hallway)
+
+    def build_boss_room(self):
         # Locate the exit waypoint
         center = self.world_gen.find_tile(self.z,WorldTile.exit_point)
         # Build a door here and lock it
@@ -435,17 +385,21 @@ class PokeyWorld:
         self.fill_room(center,WorldTile.boss)
 
     def build_traps():
+        return True
 
     def build_chests():
+        return True
 
     def build_mobs():
+        return True
 
     def build_npcs():
+        return True
 
     def place_door(self,position,locked=False):
 
         assert isinstance(position,tuple), 'Invalid pos: {}'.format(position)
-        assert len(self.world_gen.grid[position]==2, 'Tile already filled!'
+        assert len(self.world_gen.grid[position])==2, 'Tile already filled!'
 
         if locked:
             door = tiles.LockedDoor
@@ -453,22 +407,43 @@ class PokeyWorld:
             door = tiles.Door
         self.world_gen.grid[position][2]=door()
 
-    def fill_room(self,center,tile):
-        # Starts at the center and progresses outward, filling
+    def fill_boss_room(self,center,tile):
+        # Detects the room size and then loops, filling
         # a room in world_gen.grid[2] 
 
-        seq1 = [
-                (0,1,0),    # north     x,y+1,z
-                (1,1,0),    # nw        x+1,y+1,z
-                (1,0,0),    # west      x+1,y,z
-                (1,-1,0),   # sw        x+1,y-1,z
-                (0,-1,0),   # south     x,y-1,z
-                (-1,-1,0),  # se        x-1,y-1,z
-                (-1,0,0),   # east      x-1,y,z
-                (-1,1,0)    # ne        x-1,y+1,z
-                ]
+        c = center
+        x,y,z = c
 
+        for i in range(self.world_gen.room_variance):
+            for t in [(-i,i,0),(i,i,0),(-i,-i,0),(i,-i,0)]:
+                this_test = (c[0]+t[0],c[1]+t[1],c[2]+t[2])
+                if self.world_gen.grid[this_test]==WorldTile.dungeon:
+                    result = True
+                else:
+                    result = False
+                if not result:
+                    room_size = i-1
+                    break
+            if not result:
+                break
 
+        assert room_size > 0, 'Boss room size cannot be zero!'
+        assert room_size <= self.world_gen.room_variance, \
+                            'Boss room cannot be larger than room_variance'
+
+        tile = tiles.BossRoom
+        for y_offset in range(-room_size,room_size):
+            for x_offset in range(-room_size,room_size):
+                this_point = (
+                            min(self.dim_x,x+x_offset),
+                            min(self.dim_y,y+y_offset),
+                            z
+                            )
+                if self.world_gen.grid[this_point][0]==WorldTile.dungeon:
+                    self.world_gen.grid[this_point][2]=tile()
+                    # Change the map char to avoid overwriting later
+                    self.world_gen.grid[this_point][0]=WorldTile.boss
+                    self.t_count += 1
 
     def set_dims(conf):
         self.logger.debug("\tGrabbing map dimensions")
@@ -524,8 +499,8 @@ class PokeyWorld:
 
     def get_tile(self,loc):
         try:
-            assert len(grid[loc[0],loc[1],loc[2])==3, \
-                        "Missing tile : {}".format(grid[loc[0],loc[1],loc[2])
+            assert len(grid[loc[0],loc[1],loc[2]])==3, \
+                        "Missing tile : {}".format(grid[loc[0],loc[1],loc[2]])
             return grid[loc[0],loc[1],loc[2]][2]
 
         except Exception as e:
@@ -555,9 +530,9 @@ class PokeyWorld:
                     world_gen=worldgenerator.WorldGenerator(
                                                 debug,silent,
                                                 False,None,None,
-                                                self.dim_x),
-                                                self.dim_y),
-                                                self.dim_z),
+                                                self.dim_x,
+                                                self.dim_y,
+                                                self.dim_z,
                                                 0,verbose,logger,2,
                                                 post_check,
                                                 conf.path_alg[0]
@@ -684,14 +659,14 @@ class Entity(object):
         assert dmg_dict['range'] is not None, 'Invalid damage range'
 
         if dmg_dict['type']=='combat':
-
+            pass
         elif dmg_dict['type']=='magic':
             if dmg_dict['element'] is not None:
                 succ,crit = self.resist_roll(dmg_dict['element'])
         else:
             raise AssertionError("Invalid dmg type : {}".format(dmg_dict))
 
-    def apply_spell_damage(elem=None,dmg_rng):
+    def apply_spell_damage(elem=None,dmg_rng=None):
 
         if elem is not None:
 
@@ -720,7 +695,7 @@ class Entity(object):
 
         if effect.value is None:
             setattr(self,effect.name,False)
-        else
+        else:
             setattr(self,effect.name,True)
 
 
@@ -991,9 +966,9 @@ class Spell(object):
     ice = 1
     poison = 2
 
-    seals = [ExplosiveSeal]
-    bolts = [FlameBolt]
-    st_eff_list = [Paralyze]
+    seals = [spells.ExplosiveSeal]
+    bolts = [spells.FlameBolt]
+    st_eff_list = [spells.Paralyze]
 
     def __init__(
                 self,

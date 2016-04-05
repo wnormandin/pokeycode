@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import pokeygame
-from pokeygame import WorldTile
-from . import * #Game modules
+
+from pokeygame import wt as wt
 
 easy_list = [
             Hallway,
@@ -14,23 +14,62 @@ easy_list = [
             BossRoom
             ]
 
-class Door(WorldTile):
+class Dungeon(wt):
+
+    """ Generic dungeon room tiles """
+
+    def __init__(self):
+        spwn = 0.25
+        desc = "A dungeon room"
+        tile_name = "Dungeon"
+        tile_type = wt.dungeon
+
+        super(Dungeon,self).__init__(
+                                tile_name,
+                                tile_type,
+                                spawn_rate=spwn,
+                                description=desc
+                                )
+
+class BossRoom(wt):
+
+    """ Designates the room where the boss will spawn, lowest level """
+
+    def __init__(self):
+        spwn = 0
+        desc = "Room with a big boss in it"
+        tile_name = "Boss Room"
+        tile_type = wt.boss
+
+        super(BossRoom,self).__init__(
+                                    tile_name,
+                                    tile_type,
+                                    spawn_rate=spwn,
+                                    description=desc
+                                    )
+
+class Door(wt):
 
     """ Generic Door Tile """
 
     def __init__(self):
-        spawn_rate = 0
-        description = 'A door'
+        spwn = 0
+        desc = 'A door'
         tile_name = "A doorway"
-        tile_type = WorldTile.door
+        tile_type = wt.door
 
-        super(Door,self).__init__()
+        super(Door,self).__init__(
+                                tile_name,
+                                tile_type,
+                                spawn_rate=spwn,
+                                description=desc
+                                )
 
     def toggle_locked(self,opt=None):
         if opt is not None:
             if self.locked != opt:
                 self.locked = opt
-        else
+        else:
             self.locked = not self.locked
 
 class MagicDoor(Door):
@@ -46,7 +85,7 @@ class MagicDoor(Door):
         if spell is not None:
             self.seal=spell
         else:
-            self.seal=.random_seal()
+            self.seal=random_seal()
 class LockedDoor(Door):
 
     """ Doorway to a locked room """
@@ -55,7 +94,7 @@ class LockedDoor(Door):
        self.toggle_locked(True)
        super(LockedDoor,self).__init__()
 
-class Hallway(WorldTile):
+class Hallway(wt):
 
     """ Generic Hallway Tile """
 
@@ -71,11 +110,11 @@ class Hallway(WorldTile):
                 }
 
         tile_name = 'A generic hall'
-        tile_type = WorldTile.hallway
+        tile_type = wt.hallway
 
         super(Hallway,self).__init__(tile_name,tile_type,**kwargs)
 
-class Wall(WorldTile):
+class Wall(wt):
 
     """ Generic, impassable wall """
 
@@ -84,6 +123,6 @@ class Wall(WorldTile):
                 'traversable':False
                 }
         tile_name = 'A wall'
-        tile_type = WorldTile.wall
+        tile_type = wt.wall
 
         super(Wall,self).__init__(tile_name,tile_type,**kwargs)
