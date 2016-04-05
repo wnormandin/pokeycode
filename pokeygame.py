@@ -46,7 +46,7 @@ class PokeyGame(object):
                                       'tmp/game_log.txt'
                                       )
 
-        self.grid = GameGrid(self.conf)
+        self.world = PokeyWorld(self,self.conf,self.logger)
 
     def toggle_pause(self,opt=None):
         """ Toggles the game's pause status, opt will allow the status
@@ -241,7 +241,7 @@ class PokeyGame(object):
         draw_map(self,[x,y,z])
 
         def draw_map(game,loc):
-            grid = game.grid
+            grid = game.world.grid
 
             z = loc[2]      # Load the current floor (z)
 
@@ -368,19 +368,154 @@ class MenuConfig(object):
 
         self.menu_items = return_items
 
-class GameGrid(object):
+class PokeyWorld:
+    """ The World object at the center of every game, contains a GameGrid """
 
-    """ Basic grid to store tile objects, offers movement operations,
-    returning the tile at the resulting location """
+    def __init__(self,game,conf,logger):
+        self.logger = logger
+        self.set_dims(conf)
+        self.game = game
 
-    def __init__(self,conf):
+        self.logger.info("[*] Beginning PokeyWorld Generation")
+        self.world_gen = self.grid_init_check(self.conf,self.logger)
+        # The grid now contains a single-digit code in [0] and
+        # an ASCII color-code to be used with the ColorIzed class
+        # in [1].  Remember the grid is a dictionary with 
+        # coordinates as its keys and lists as its values
 
-        self.grid = self.grid_init_check(conf)
+        self.logger.debug("\tPlacing boss room")
+        self.boss_room()
+        # The boss room is inserted on the bottom floor first
+
+        self.logger.debug("\tBuilding rooms")
+        self.build_rooms()
+        # Rooms are filled by visiting each waypoint in the
+        # self.grid.way_list attribute, then designating a
+        # random type for each
+
+        self.logger.debug("\tBuilding hallways")
+        self.build_hallways()
+        # Hallways are filled
+
+        self.logger.debug("\tBuilding doors")
+        self.build_doors()
+        # Doors are placed at logically-determined junctions
+
+        self.logger.debug("\tBuilding chests")
+        self.build_chests()
+        # Chests and items are populated in rooms
+
+        self.logger.debug("\tBuilding mobs")
+        self.build_mobs()
+        # Mobs are generated throughout the dungeon
+
+        self.logger.debug("\tBuilding NPCs")
+        self.build_npcs()
+        # NPCs are populated
+
+    def populate_tiles(self):
+        """ Fills grid(x,y,z)[2] with WorldTile tiles """
+
+        # grid format :
+        # grid(x,y,z)[0]: A valid WorldTile type (i.e. WorldTile.door)
+        # grid(x,y,z)[1]: A list of ASCII color or format codes for ColorIze
+        # grid(x,y,z)[2]: The tile object
+
+    def build_rooms():
+        
+
+    def build_doors():
+
+    def boss_room(self):
+        # Locate the exit waypoint
+        center = self.world_gen.find_tile(self.z,WorldTile.exit_point)
+        # Build a door here and lock it
+        self.place_door(center,True)
+        # Fill the room with Boss Room tiles
+        self.fill_room(center,WorldTile.boss)
+
+    def build_traps():
+
+    def build_chests():
+
+    def build_mobs():
+
+    def build_npcs():
+
+    def place_door(self,position,locked=False):
+
+        assert isinstance(position,tuple), 'Invalid pos: {}'.format(position)
+        assert len(self.world_gen.grid[position]==2, 'Tile already filled!'
+
+        if locked:
+            door = tiles.LockedDoor
+        else:
+            door = tiles.Door
+        self.world_gen.grid[position][2]=door()
+
+    def fill_room(self,center,tile):
+        # Starts at the center and progresses outward, filling
+        # a room in world_gen.grid[2] 
+
+        seq1 = [
+                (0,1,0),    # north     x,y+1,z
+                (1,1,0),    # nw        x+1,y+1,z
+                (1,0,0),    # west      x+1,y,z
+                (1,-1,0),   # sw        x+1,y-1,z
+                (0,-1,0),   # south     x,y-1,z
+                (-1,-1,0),  # se        x-1,y-1,z
+                (-1,0,0),   # east      x-1,y,z
+                (-1,1,0)    # ne        x-1,y+1,z
+                ]
+
+
+
+    def set_dims(conf):
+        self.logger.debug("\tGrabbing map dimensions")
+        self.dim_x = int(conf.dim_x[0])
+        self.dim_y = int(conf.dim_y[0])
+        self.dim_z = int(conf.dim_z[0])
+
+        self.logger.debug("\tChecking dimensions against template...")
+        assert self.check_dimensions(), 'Dimension conflict! Check your conf'
+        self.logger.debug("\tDimensions passed!")
+
+    def check_dimensions(self):
+        g_z = len(self.world_gen.grid)
+        g_y = len(self.world_gen.grid[0])
+        g_x = len(self.world_gen.grid[0][0])
+        c_z = int(self.conf.dim_z[0])
+        c_y = int(self.conf.dim_y[0])
+        c_x = int(self.conf.dim_x[0])
+        x = self.x
+        y = self.y
+        z = self.z
+
+        if all(g_z==z,c_z==z,g_y==y,c_y==y,g_x==x,c_x==x):
+            return True
+        else:
+            for line in print_dimensions((z,g_z,c_z),(y,g_y,c_y),(z,g_x,c_x)):
+                self.logger.debug(line)
+            return False
+
+    def print_dimensions(self,z,y,x):
+        col_size = 10
+        separator = "\t"
+        separator += "=" * (col_size*4)
+        separator += "\n"
+        retval = "\t{1:{^{0}}|{2:^{0}}|{3:^{0}}|{4:^{0}}\n".format(col_size,
+                                            "DIM","CONFIG","GAME","WORLD")
+        retval += separator
+        for item in [x,y,z]:
+            retval += "\t{1:{^{0}}|{2:^{0}}|{3:^{0}}|{4:^{0}}\n".format(col_size,
+                                            item.__name__,*item)
+        retval += separator
+        return retval
 
     def grid_insert(self,tile,loc):
         try:
             x,y,z = loc[0],loc[1],loc[2]
-            self.grid[x,y,z]=tile
+            self.grid[x,y,z][2]=tile
         except Exception as e:
             self.game.handle_error(e)
             return False
@@ -389,25 +524,52 @@ class GameGrid(object):
 
     def get_tile(self,loc):
         try:
-            x,y,z = loc[0],loc[1],loc[2]
-            return grid[x,y,z]
+            assert len(grid[loc[0],loc[1],loc[2])==3, \
+                        "Missing tile : {}".format(grid[loc[0],loc[1],loc[2])
+            return grid[loc[0],loc[1],loc[2]][2]
+
         except Exception as e:
             self.game.handle_error(e)
             return False
 
-    def grid_init_check(self,conf):
-        """ Verifies the given dimensions """
+    def grid_init_check(self):
+        """ Verifies the given dimensions & returns the WorldGenerator gird """
         try:
-            assert isinstance(conf.dim_x[0],int),(
-                'Bad dimension x:{0}'.format(conf.dim_x[0]))
-            assert isinstance(conf.dim_y[0],int),(
-                'Bad dimension y:{0}'.format(conf.dim_y[0]))
-            assert isinstance(conf.dim_z[0],int),(
-                'Bad dimension z:{0}'.format(conf.dim_z[0]))
+            assert isinstance(self.conf.dim_x[0],int),(
+                'Bad dimension x:{0}'.format(self.conf.dim_x[0]))
+            assert isinstance(self.conf.dim_y[0],int),(
+                'Bad dimension y:{0}'.format(self.conf.dim_y[0]))
+            assert isinstance(self.conf.dim_z[0],int),(
+                'Bad dimension z:{0}'.format(self.conf.dim_z[0]))
         except AssertionError:
             return False
         else:
-            return {(0,0,0):False} # Return grid dict
+            debug = True if conf.debug=='1' else False
+            silent = True if conf.silent=='1' else False
+            verbose = True if conf.verbose=='1' else False
+            post_check = True if conf.auto_check=='1' else False
+
+            max_trys = 3
+            while True:
+                try:
+                    world_gen=worldgenerator.WorldGenerator(
+                                                debug,silent,
+                                                False,None,None,
+                                                self.dim_x),
+                                                self.dim_y),
+                                                self.dim_z),
+                                                0,verbose,logger,2,
+                                                post_check,
+                                                conf.path_alg[0]
+                                                )
+                    break
+                except:
+                    if max_trys > 0:
+                        raise
+                    else:
+                        continue
+                else:
+                    return world_gen
 
 class Skill(object):
 
@@ -493,28 +655,14 @@ class RandomRoll(object):
 
         return self.hit, self.crit
 
-class Player(object):
+class Entity(object):
 
-    """ General Player class """
+    """ General attributes/methods for Player/NPC Entities """
 
-    male = 0
-    female = 1
-
-    def __init__(
-                self,
-                skill_list,
-                p_name,
-                p_age=27,
-                p_sex=0
-                ):
-
-        self.name = p_name
-        self.age = p_age
-        self.sex = p_sex
-
-        self.level=1
-        self.crit_level=1
-        self.turn = 0
+    def __init__(self):
+        self.trigger_seal = False    # Set to true for Player types
+        self.lootable = True
+        self.living = True
 
         # Numeric attributes
         for item in [
@@ -529,8 +677,56 @@ class Player(object):
                     ]:
             setattr(self,item,0)
 
-        # Boolean attributes
-        for bitem in [
+        self.turn_initialize()
+
+    def apply_damage(self,dmg_dict):
+
+        assert dmg_dict['range'] is not None, 'Invalid damage range'
+
+        if dmg_dict['type']=='combat':
+
+        elif dmg_dict['type']=='magic':
+            if dmg_dict['element'] is not None:
+                succ,crit = self.resist_roll(dmg_dict['element'])
+        else:
+            raise AssertionError("Invalid dmg type : {}".format(dmg_dict))
+
+    def apply_spell_damage(elem=None,dmg_rng):
+
+        if elem is not None:
+
+            assert dmg_rng is not None, 'Invalid damage range'
+            succ,crit = self.resist_roll(elem)
+
+        else:
+            succ = crit = False
+
+        if succ and crit:
+            return False
+        elif succ or crit:
+            dmg = dmg_rng[0]
+        else:
+            dmg = random.randint(dmg_rng)
+
+        self.health -= dmg
+        self.living_check()
+
+    def resist_roll(self,elem):
+        resist = getattr(self,'resist_{}'.format(elem.__name__))
+
+        return  RandomRoll(self, resist)
+
+    def status_effect(self,effect):
+
+        if effect.value is None:
+            setattr(self,effect.name,False)
+        else
+            setattr(self,effect.name,True)
+
+
+    def turn_initialize(self):
+        # Boolean status effect attributes
+        for bool_item in [
                     'blind',
                     'paralyzed',
                     'slow',
@@ -538,23 +734,25 @@ class Player(object):
                     'berzerk',
                     'protected',
                     'immune',
-                    'invincible'
+                    'invincible',
+                    'stunned'
                     ]:
-            setattr(self,bitem,False)
+            setattr(self,bool_item,False)
 
-        self.effects = []
+    def turn_upkeep(self):
+        for effect in self.active_effects:
+            effect = effect.cast()
 
-        try:
-            self.skills = [skill() for skill in skill_list]
-        except:
-            self.skills = skill_list
+        self.active_effects = [e for e in self.active_effects \
+                    if e is not None]
 
-    def player_creation(self):
-        """ Player creation script """
+    def living_check(self):
+        if self.health <= 0:
+            self.living = False
 
-    def level_up(self):
-        """ Levels up the player, increasing attributes """
-        pass
+    def dead(self):
+        assert self.living is not None, 'Invalid living state : None'
+        return not self.living
 
     def process_effects(self):
         """ Processes assigned effects """
@@ -580,7 +778,7 @@ class Player(object):
                         dmg=0,
                         percent=False
                         ):
-        """ Processes player damage effects and resists """
+        """ Processes entity damage effects and resists """
 
         # If a resist attribute is passed, the player
         # will attempt to resist the damage
@@ -617,7 +815,7 @@ class Player(object):
                             status_val=False,
                             resist=None
                             ):
-        """ Processes player status effects and resists """
+        """ Processes entity status effects and resists """
 
         # If a resist attribute is passed, the player
         # will attempt to resist the status change
@@ -635,6 +833,49 @@ class Player(object):
             pass
         else:
             setattr(self,status_att,status_val)
+
+class Player(Entity):
+
+    """ General Player Entity """
+
+    male = 0
+    female = 1
+
+    def __init__(
+                self,
+                skill_list,
+                p_name,
+                p_age=27,
+                p_sex=0
+                ):
+
+        Super(Player,self).__init__()
+
+        self.trigger_seal = True
+
+        self.name = p_name
+        self.age = p_age
+        self.sex = p_sex
+
+        self.level=1
+        self.crit_level=1
+        self.turn = 0
+
+
+        self.effects = []
+
+        try:
+            self.skills = [skill() for skill in skill_list]
+        except:
+            self.skills = skill_list
+
+    def player_creation(self):
+        """ Player creation script """
+
+    def level_up(self):
+        """ Levels up the player, increasing attributes """
+        pass
+
 
 class ColorIze(object):
     """ Allows colorizing (in available terminals)"""
@@ -735,3 +976,93 @@ class PlayerClass(object):
                 skill.assign(player,0)
             else:
                 skill.assign(player,25)
+
+class Spell(object):
+
+    """ Generic Spell Class """
+
+    # Spell Types
+    offensive = 0
+    status = 1
+    seal = 2
+
+    # Spell Elements
+    fire = 0
+    ice = 1
+    poison = 2
+
+    seals = [ExplosiveSeal]
+    bolts = [FlameBolt]
+    st_eff_list = [Paralyze]
+
+    def __init__(
+                self,
+                immediate = False,  # If True cast spell immediately
+                sp_type = None,     # Spell cast type
+                sp_elem = None,     # Spell element
+                sp_trigger = None,  # Spell trigger events
+                counter = 1,        # Spell remaining casts
+                dmg_range = (5,10)  # Possible damage range 
+                ):
+
+        if self.immediate:
+            self.cast()
+
+    def validate_target(self,t):
+
+        assert self.target is not None, 'No Target Specified'
+
+        assert isinstance(self.target, t), \
+                'Invalid spell target : {}'.format(self.target)
+
+        if t == PokeyGame.Entity:
+            assert self.target.living, 'Spell target is dead'
+
+        if self.sp_type == Spell.offensive:
+            assert self.sp_elem is not None, 'No offensive spell element set'
+
+    def trigger(self,event):
+
+        # Process trigger events
+
+        if self.sp_trigger == event:
+            self.cast()
+
+    def cast(self):
+
+        if self.sp_type == Spell.offensive:
+
+            # Ensure the spell target is eligible to receive damage
+            self.validate_target(PokeyGame.Entity)
+            self.damage_target()
+
+        elif self.sp_type == Spell.status:
+            # Ensure the spell target can be effected
+            self.validate_target(PokeyGame.Entity)
+            self.target.status_effect(self.effect)
+
+        elif self.sp_type == Spell.seal:
+            # Ensure the seal target can be sealed
+            self.validate_target((
+                                pokeygame.Trap,
+                                WorldTile.Door,
+                                WorldTile.Chest
+                                ))
+            self.target.apply_seal(self)
+
+        return self.applied()
+
+    def applied(self):
+        assert isinstance(self.counter,int), 'Invalid counter!'
+        if self.counter > 0:
+            self.counter -= 1
+            return self
+        else:
+            return None
+
+    def random_spell(self,sp_type=None):
+        assert sp_type is not None, 'Spell type required for random selection'
+
+
+    def damage_target(self):
+        self.target.apply_spell_damage(self.sp_elem,self.dmg_range)

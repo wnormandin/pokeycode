@@ -32,7 +32,8 @@ class WorldGenerator:
                 verbose=False,  # Verbose mode
                 app_logger=None,# Optional passed logger
                 room_variance=2,# Room size variance
-                post_check=False # Automatic post-generation check
+                post_check=False,# Automatic post-generation check
+                path_alg='gbf_search'   # Path testing algorithm
                 ):
         """ WorldGenerator creates a world_template """
 
@@ -55,6 +56,7 @@ class WorldGenerator:
         # being returned.
 
         start = time.clock()
+        self.history = []
 
         if app_logger is None:
             # Enable verbose messages if in debug or verbose mode
@@ -424,6 +426,7 @@ class WorldGenerator:
         """ Connects the two points with hallway tiles """
 
         tile_list = []  # List of tiles to be set
+        self.history.append(pt1)    # Append to the history
         coord_list = list(pt1)  # create a mutable coord list
 
         max_loops = 35      # Max loops per leg
@@ -454,13 +457,8 @@ class WorldGenerator:
             if rng:
                 self.logger.debug('\tDestination point in range')
                 for n in range(rng):
-                    coord = coord_list
-                    coord[idx]+=n
-                    coord = tuple(coord)
-                    assert isinstance(coord,(tuple)), 'Invalid coord {}'.format(
-                                                                    coord
-                                                                    )
-                    tile_list.append(coord)
+                    coord_list[idx]+=n
+                    tile_list.append(tuple(coord_list))
                 break
             # If not the final leg, randomly select a direction
             idx,val = self.path_avail_dirs(
@@ -481,7 +479,8 @@ class WorldGenerator:
                                     [color.BLUE,color.BOLD]
                                     ]
             except KeyError:
-                self.logger.error('[*] Invalid tile specified!')
+                if not self.silent:
+                    self.logger.error('[*] Invalid tile specified!')
                 self.logger.debug('Tile value : {}'.format(tile))
                 continue
 
