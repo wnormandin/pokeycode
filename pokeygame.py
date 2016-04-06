@@ -12,7 +12,9 @@ from curses import panel
 # Custom modules
 import pokeyworks as fw
 from resources.games import *
+from resources.games.tiles import WorldTile
 from pokeywins import PokeyMenu
+from resources.games.world_generator import WorldGenerator
 
 class PokeyGame(object):
 
@@ -153,83 +155,6 @@ class PokeyGame(object):
                     # Draw a map here!
                     pass
 
-class WorldTile(object):
-
-    """ Class to contain world tile objects """
-
-    wall = '0'
-    hallway = '1'
-    door = '2'
-    dungeon = '3'
-    shop = '4'
-    boss = '5'
-
-    entry_point = 'S'
-    descent_point = 'D'
-    exit_point = 'E'
-    ascent_point = 'U'
-
-    tile_set = [wall,hallway,door,dungeon,shop,boss,
-                entry_point,descent_point,exit_point,
-                ascent_point]
-
-    def __init__(self,tile_name,tile_type,**kwargs):
-        self.tile_name = tile_name
-        self.tile_type = tile_type
-        assert self.tile_type in WorldTile.tile_set,'Invalid Tile Type'
-
-        # kwarg defaults
-        for pair in [
-                    ('eligibles',{}),   # Eligible item/mob/trap types   
-                    ('visible',False),  # Sets tile map visibility
-                    ('explored',False), # Tile explored flag
-                    ('spawn_rate',False),# General contents spawn rate
-                    ('locked',False),   # Locked status (doors only)
-                    ('mobs',[]),        # List of contained mobs
-                    ('corpses',[]),     # List of contained corpses
-                    ('items',[]),       # List of contained items
-                    ('traps',[])        # List of contained traps
-                    ('description',''), # Tile description
-                    ('traversable',True) # Traversable flag
-                    ]:
-            try:
-                setattr(self,pair[0],kwargs[pair[0]])
-            except:
-                setattr(self,pair[0],pair[1])
-
-        # Only allow locking if the tile is a door
-        if self.tile_type != WorldTile.door:
-            assert not self.locked, 'Invalid tile to lock:{0}'.format(
-                                                            self.tile_type
-                                                            )
-
-        self.tile_initialize(game)
-
-    def tile_initialize(self,game):
-        for item in ['mobs','items','traps']:
-            self.gen(item)
-
-    def gen(self,game,tile_content):
-        for item_type in self.eligibles:
-            if item_type==tile_content:
-                possibles = self.eligibles[item_type]
-
-        self.level = game.player.level
-        item_list = getattr(self,item_type)
-        succ,bonus = RandomRoll(game.player,self,self.spawn_rate)
-
-        if succ and bonus:
-            repetitions = 2
-        elif succ:
-            repetitions = 1
-        else:
-            repetitions = 0
-
-        while repititions > 0:
-            # Instantiates and appends the item_type
-            item_list.append(possibles[random.randint(len(possibles))]())
-            repetitions -= 1
-
 class MenuConfig(object):
 
     """ Curses Menu configuration class """
@@ -276,45 +201,17 @@ class PokeyWorld:
 
     def __init__(self,game,conf,logger):
         self.logger = logger
-        self.set_dims(conf)
         self.game = game
-
+        self.conf = conf
         self.logger.info("[*] Beginning PokeyWorld Generation")
-        self.world_gen = self.grid_init_check(self.conf,self.logger)
-        # The grid now contains a single-digit code in [0] and
-        # an ASCII color-code to be used with the ColorIzed class
-        # in [1].  Remember the grid is a dictionary with 
-        # coordinates as its keys and lists as its values
+        self.set_dims(conf)
+        self.world_gen = self.grid_init_check()
 
-        self.logger.debug("\tPlacing boss room")
-        self.boss_room()
-        # The boss room is inserted on the bottom floor first
+        self.logger.debug("\tChecking dimensions against template...")
+        assert self.check_dimensions(), 'Dimension conflict! Check your conf'
+        self.logger.debug("\tDimensions passed!")
 
-        self.logger.debug("\tBuilding rooms")
-        self.build_rooms()
-        # Rooms are filled by visiting each waypoint in the
-        # self.grid.way_list attribute, then designating a
-        # random type for each
-
-        self.logger.debug("\tBuilding hallways")
-        self.build_hallways()
-        # Hallways are filled
-
-        self.logger.debug("\tBuilding doors")
-        self.build_doors()
-        # Doors are placed at logically-determined junctions
-
-        self.logger.debug("\tBuilding chests")
-        self.build_chests()
-        # Chests and items are populated in rooms
-
-        self.logger.debug("\tBuilding mobs")
-        self.build_mobs()
-        # Mobs are generated throughout the dungeon
-
-        self.logger.debug("\tBuilding NPCs")
-        self.build_npcs()
-        # NPCs are populated
+        self.populate_tiles()
 
     def populate_tiles(self):
         """ Fills grid(x,y,z)[2] with WorldTile tiles """
@@ -378,7 +275,7 @@ class PokeyWorld:
 
     def build_boss_room(self):
         # Locate the exit waypoint
-        center = self.world_gen.find_tile(self.z,WorldTile.exit_point)
+        center = self.world_gen.find_tile(self.dim_z,WorldTile.exit_point)
         # Build a door here and lock it
         self.place_door(center,True)
         # Fill the room with Boss Room tiles
@@ -445,31 +342,25 @@ class PokeyWorld:
                     self.world_gen.grid[this_point][0]=WorldTile.boss
                     self.t_count += 1
 
-    def set_dims(conf):
+    def set_dims(self,conf):
         self.logger.debug("\tGrabbing map dimensions")
         self.dim_x = int(conf.dim_x[0])
         self.dim_y = int(conf.dim_y[0])
         self.dim_z = int(conf.dim_z[0])
 
-        self.logger.debug("\tChecking dimensions against template...")
-        assert self.check_dimensions(), 'Dimension conflict! Check your conf'
-        self.logger.debug("\tDimensions passed!")
 
     def check_dimensions(self):
-        g_z = len(self.world_gen.grid)
-        g_y = len(self.world_gen.grid[0])
-        g_x = len(self.world_gen.grid[0][0])
         c_z = int(self.conf.dim_z[0])
         c_y = int(self.conf.dim_y[0])
         c_x = int(self.conf.dim_x[0])
-        x = self.x
-        y = self.y
-        z = self.z
+        x = self.dim_x
+        y = self.dim_y
+        z = self.dim_z
 
-        if all(g_z==z,c_z==z,g_y==y,c_y==y,g_x==x,c_x==x):
+        if all((c_z==z,c_y==y,c_x==x)):
             return True
         else:
-            for line in print_dimensions((z,g_z,c_z),(y,g_y,c_y),(z,g_x,c_x)):
+            for line in print_dimensions((z,c_z),(y,c_y),(z,c_x)):
                 self.logger.debug(line)
             return False
 
@@ -478,11 +369,11 @@ class PokeyWorld:
         separator = "\t"
         separator += "=" * (col_size*4)
         separator += "\n"
-        retval = "\t{1:{^{0}}|{2:^{0}}|{3:^{0}}|{4:^{0}}\n".format(col_size,
-                                            "DIM","CONFIG","GAME","WORLD")
+        retval = "\t{1:{^{0}}|{2:^{0}}|{3:^{0}}\n".format(col_size,
+                                            "DIM","CONFIG","WORLD")
         retval += separator
         for item in [x,y,z]:
-            retval += "\t{1:{^{0}}|{2:^{0}}|{3:^{0}}|{4:^{0}}\n".format(col_size,
+            retval += "\t{1:{^{0}}|{2:^{0}}|{3:^{0}}\n".format(col_size,
                                             item.__name__,*item)
         retval += separator
         return retval
@@ -509,42 +400,42 @@ class PokeyWorld:
 
     def grid_init_check(self):
         """ Verifies the given dimensions & returns the WorldGenerator gird """
-        try:
-            assert isinstance(self.conf.dim_x[0],int),(
-                'Bad dimension x:{0}'.format(self.conf.dim_x[0]))
-            assert isinstance(self.conf.dim_y[0],int),(
-                'Bad dimension y:{0}'.format(self.conf.dim_y[0]))
-            assert isinstance(self.conf.dim_z[0],int),(
-                'Bad dimension z:{0}'.format(self.conf.dim_z[0]))
-        except AssertionError:
-            return False
-        else:
-            debug = True if conf.debug=='1' else False
-            silent = True if conf.silent=='1' else False
-            verbose = True if conf.verbose=='1' else False
-            post_check = True if conf.auto_check=='1' else False
+        #try:
+            #assert isinstance(self.conf.dim_x[0],int),(
+            #    'Bad dimension x:{0}'.format(self.conf.dim_x[0]))
+            #assert isinstance(self.conf.dim_y[0],int),(
+            #    'Bad dimension y:{0}'.format(self.conf.dim_y[0]))
+            #assert isinstance(self.conf.dim_z[0],int),(
+            #    'Bad dimension z:{0}'.format(self.conf.dim_z[0]))
+        #except AssertionError:
+            #raise
 
-            max_trys = 3
-            while True:
-                try:
-                    world_gen=worldgenerator.WorldGenerator(
-                                                debug,silent,
-                                                False,None,None,
-                                                self.dim_x,
-                                                self.dim_y,
-                                                self.dim_z,
-                                                0,verbose,logger,2,
-                                                post_check,
-                                                conf.path_alg[0]
-                                                )
-                    break
-                except:
-                    if max_trys > 0:
-                        raise
-                    else:
-                        continue
+        debug = True if self.conf.debug=='1' else False
+        silent = True if self.conf.silent=='1' else False
+        verbose = True if self.conf.verbose=='1' else False
+        post_check = True if self.conf.auto_check=='1' else False
+
+        max_trys = 3
+        while True:
+            try:
+                world_gen=WorldGenerator(
+                                        debug,silent,
+                                        False,None,None,
+                                        self.dim_x,
+                                        self.dim_y,
+                                        self.dim_z,
+                                        0,verbose,self.logger,2,
+                                        post_check,
+                                        self.conf.path_alg[0]
+                                        )
+            except:
+                if max_trys > 0:
+                    raise
                 else:
-                    return world_gen
+                    continue
+            else:
+                print world_gen
+                return world_gen
 
 class Skill(object):
 
@@ -952,92 +843,3 @@ class PlayerClass(object):
             else:
                 skill.assign(player,25)
 
-class Spell(object):
-
-    """ Generic Spell Class """
-
-    # Spell Types
-    offensive = 0
-    status = 1
-    seal = 2
-
-    # Spell Elements
-    fire = 0
-    ice = 1
-    poison = 2
-
-    seals = [spells.ExplosiveSeal]
-    bolts = [spells.FlameBolt]
-    st_eff_list = [spells.Paralyze]
-
-    def __init__(
-                self,
-                immediate = False,  # If True cast spell immediately
-                sp_type = None,     # Spell cast type
-                sp_elem = None,     # Spell element
-                sp_trigger = None,  # Spell trigger events
-                counter = 1,        # Spell remaining casts
-                dmg_range = (5,10)  # Possible damage range 
-                ):
-
-        if self.immediate:
-            self.cast()
-
-    def validate_target(self,t):
-
-        assert self.target is not None, 'No Target Specified'
-
-        assert isinstance(self.target, t), \
-                'Invalid spell target : {}'.format(self.target)
-
-        if t == PokeyGame.Entity:
-            assert self.target.living, 'Spell target is dead'
-
-        if self.sp_type == Spell.offensive:
-            assert self.sp_elem is not None, 'No offensive spell element set'
-
-    def trigger(self,event):
-
-        # Process trigger events
-
-        if self.sp_trigger == event:
-            self.cast()
-
-    def cast(self):
-
-        if self.sp_type == Spell.offensive:
-
-            # Ensure the spell target is eligible to receive damage
-            self.validate_target(PokeyGame.Entity)
-            self.damage_target()
-
-        elif self.sp_type == Spell.status:
-            # Ensure the spell target can be effected
-            self.validate_target(PokeyGame.Entity)
-            self.target.status_effect(self.effect)
-
-        elif self.sp_type == Spell.seal:
-            # Ensure the seal target can be sealed
-            self.validate_target((
-                                pokeygame.Trap,
-                                WorldTile.Door,
-                                WorldTile.Chest
-                                ))
-            self.target.apply_seal(self)
-
-        return self.applied()
-
-    def applied(self):
-        assert isinstance(self.counter,int), 'Invalid counter!'
-        if self.counter > 0:
-            self.counter -= 1
-            return self
-        else:
-            return None
-
-    def random_spell(self,sp_type=None):
-        assert sp_type is not None, 'Spell type required for random selection'
-
-
-    def damage_target(self):
-        self.target.apply_spell_damage(self.sp_elem,self.dmg_range)

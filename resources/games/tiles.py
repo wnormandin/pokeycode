@@ -3,18 +3,84 @@
 
 import pokeygame
 
-from pokeygame import wt as wt
+class WorldTile(object):
 
-easy_list = [
-            Hallway,
-            Wall,
-            Door,
-            Dungeon,
-            Shop,
-            BossRoom
-            ]
+    """ Class to contain world tile objects """
 
-class Dungeon(wt):
+    wall = '0'
+    hallway = '1'
+    door = '2'
+    dungeon = '3'
+    shop = '4'
+    boss = '5'
+
+    entry_point = 'S'
+    descent_point = 'D'
+    exit_point = 'E'
+    ascent_point = 'U'
+
+    tile_set = [wall,hallway,door,dungeon,shop,boss,
+                entry_point,descent_point,exit_point,
+                ascent_point]
+
+    def __init__(self,tile_name,tile_type,**kwargs):
+        self.tile_name = tile_name
+        self.tile_type = tile_type
+        assert self.tile_type in WorldTile.tile_set,'Invalid Tile Type'
+
+        # kwarg defaults
+        for pair in [
+                    ('eligibles',{}),   # Eligible item/mob/trap types   
+                    ('visible',False),  # Sets tile map visibility
+                    ('explored',False), # Tile explored flag
+                    ('spawn_rate',False),# General contents spawn rate
+                    ('locked',False),   # Locked status (doors only)
+                    ('mobs',[]),        # List of contained mobs
+                    ('corpses',[]),     # List of contained corpses
+                    ('items',[]),       # List of contained items
+                    ('traps',[]),        # List of contained traps
+                    ('description',''), # Tile description
+                    ('traversable',True) # Traversable flag
+                    ]:
+            try:
+                setattr(self,pair[0],kwargs[pair[0]])
+            except:
+                setattr(self,pair[0],pair[1])
+
+        # Only allow locking if the tile is a door
+        if self.tile_type != WorldTile.door:
+            assert not self.locked, 'Invalid tile to lock:{0}'.format(
+                                                            self.tile_type
+                                                            )
+
+        self.tile_initialize(game)
+
+    def tile_initialize(self,game):
+        for item in ['mobs','items','traps']:
+            self.gen(item)
+
+    def gen(self,game,tile_content):
+        for item_type in self.eligibles:
+            if item_type==tile_content:
+                possibles = self.eligibles[item_type]
+
+        self.level = game.player.level
+        item_list = getattr(self,item_type)
+        succ,bonus = RandomRoll(game.player,self,self.spawn_rate)
+
+        if succ and bonus:
+            repetitions = 2
+        elif succ:
+            repetitions = 1
+        else:
+            repetitions = 0
+
+        while repititions > 0:
+            # Instantiates and appends the item_type
+            item_list.append(possibles[random.randint(len(possibles))]())
+            repetitions -= 1
+
+class Dungeon(WorldTile):
 
     """ Generic dungeon room tiles """
 
@@ -22,7 +88,7 @@ class Dungeon(wt):
         spwn = 0.25
         desc = "A dungeon room"
         tile_name = "Dungeon"
-        tile_type = wt.dungeon
+        tile_type = WorldTile.dungeon
 
         super(Dungeon,self).__init__(
                                 tile_name,
@@ -31,7 +97,7 @@ class Dungeon(wt):
                                 description=desc
                                 )
 
-class BossRoom(wt):
+class BossRoom(WorldTile):
 
     """ Designates the room where the boss will spawn, lowest level """
 
@@ -39,7 +105,7 @@ class BossRoom(wt):
         spwn = 0
         desc = "Room with a big boss in it"
         tile_name = "Boss Room"
-        tile_type = wt.boss
+        tile_type = WorldTile.boss
 
         super(BossRoom,self).__init__(
                                     tile_name,
@@ -48,7 +114,7 @@ class BossRoom(wt):
                                     description=desc
                                     )
 
-class Door(wt):
+class Door(WorldTile):
 
     """ Generic Door Tile """
 
@@ -56,13 +122,14 @@ class Door(wt):
         spwn = 0
         desc = 'A door'
         tile_name = "A doorway"
-        tile_type = wt.door
+        tile_type = WorldTile.door
 
         super(Door,self).__init__(
                                 tile_name,
                                 tile_type,
                                 spawn_rate=spwn,
-                                description=desc
+                                description=desc,
+                                locked=self.locked
                                 )
 
     def toggle_locked(self,opt=None):
@@ -91,10 +158,10 @@ class LockedDoor(Door):
     """ Doorway to a locked room """
 
     def __init__(self):
-       self.toggle_locked(True)
-       super(LockedDoor,self).__init__()
+        self.locked=True
+        super(LockedDoor,self).__init__()
 
-class Hallway(wt):
+class Hallway(WorldTile):
 
     """ Generic Hallway Tile """
 
@@ -110,11 +177,11 @@ class Hallway(wt):
                 }
 
         tile_name = 'A generic hall'
-        tile_type = wt.hallway
+        tile_type = WorldTile.hallway
 
         super(Hallway,self).__init__(tile_name,tile_type,**kwargs)
 
-class Wall(wt):
+class Wall(WorldTile):
 
     """ Generic, impassable wall """
 
@@ -123,6 +190,7 @@ class Wall(wt):
                 'traversable':False
                 }
         tile_name = 'A wall'
-        tile_type = wt.wall
+        tile_type = WorldTile.wall
 
         super(Wall,self).__init__(tile_name,tile_type,**kwargs)
+

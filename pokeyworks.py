@@ -664,3 +664,36 @@ class Daemon():
         """ Must be replaced by child class """
 
         raise AssertionError("No run method in child class!")
+
+class ColorIze(object):
+    """ Allows colorizing (in available terminals)"""
+
+    BLACK_ON_GREEN = '\x1b[1;30;42m'
+    BLACK_ON_RED = '\x1b[0;30;41m'
+    MAGENTA_ON_BLUE = '\x1b[1;35;44m'
+    WHITE_ON_BLUE = '\x1b[5;37;44m'
+    PURPLE = '\033[95m'
+    CYAN = '\033[96m'
+    DARKCYAN = '\033[36m'
+    BLUE = '\033[94m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    RED = '\033[91m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+    END = '\033[0m'
+
+    def __init__(self,val,opts):
+        """ Takes the val, and wraps it in the passed opts """
+
+        assert isinstance(opts,(list,tuple)), 'Invalid color option list!'
+
+        retval = ''
+        for opt in opts:
+            retval += opt
+
+        retval += '{}{}'.format(val,ColorIze.END)
+
+        self.colorized = retval
+
+        return

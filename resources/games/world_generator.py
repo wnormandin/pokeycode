@@ -10,8 +10,8 @@ import inspect
 import logging
 import time
 from pathfinder import Pathfinder, GraphGrid
-from pokeygame import ColorIze as color
-from pokeygame import WorldTile
+from pokeyworks import ColorIze as color
+from tiles import  WorldTile
 from pokeyworks import setup_logger as logger
 
 class WorldGenerator:
@@ -57,6 +57,7 @@ class WorldGenerator:
 
         start = time.clock()
         self.history = []
+        self.silent = silent
 
         if app_logger is None:
             # Enable verbose messages if in debug or verbose mode
