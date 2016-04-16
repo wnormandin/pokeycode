@@ -3,7 +3,7 @@
 #***********************************************************************
 #			Essential Framework and Utilities- bill@pokeybill.us
 #***********************************************************************
-""" This framework is intented to contain miscellaneous utilities for 
+""" This framework is intented to contain miscellaneous utilities for
     python projects.  Includes :
 
 	Logging Utility
@@ -18,7 +18,7 @@
     Linux daemon class
 
     The _flags global dict will contain various boolean values corresponding
-    to the presence/absence of certain core modules that are not in the 
+    to the presence/absence of certain core modules that are not in the
     standard distribution (ie Gtk, MultiProcessing based on OS)
 """
 #****************************** Globals ********************************
@@ -31,6 +31,8 @@ import time
 import sys
 import multiprocessing
 import inspect
+import json
+import yaml
 
 # PATHS
 _conf_path = ''		# Optional default path to app configutaion file
@@ -178,67 +180,34 @@ def plurals(word, qty):
 	else:
 		return qty, word
 
-#****************************** Dialogs ********************************
-#class InfoDialog(Gtk.Dialog):
-
-	#global _icon_path
-
-	#def __init__(self, ttl, msg, icpth=_icon_path):
-		#Gtk.Dialog.__init__(self, ttl, None, 0,
-			#(Gtk.STOCK_OK, Gtk.ResponseType.OK))
-		#self.set_modal(True)
-
-		#self.set_default_size(150, 100)
-
-		#if icpth:
-			#self.set_icon_from_file(icpth)
-
-		#label = Gtk.Label(msg)
-
-		#box = self.get_content_area()
-		#box.add(label)
-		#self.show_all()
-
 #*****************************PokeyConfig*******************************
 
 class PokeyConfig(object):
-	'''Config Class Usage:
 
-	1. Take any value you wish to allow to be configurable in config.dat
+    """ PokeyConfig is a multi-language configuration file class """
 
-	2. Add a record in config.dat (format :  name%value%description)
-	   *%-delimited, single-quote quotechar
+    #Supported formats :
+    #    Python
+    #    JSON
+    #    YAML
+    #    Delimited
 
-	3. Load the PokeyConfig Class in the module (pass the path to config.dat)
+    # Enable delimited mode by passing a delimiter in the type
+    pipe = '|'
+    tab = '\t'
+    semicolon = ';'
+    comma = ','
 
-	4. Access the .check_attr([var name, value]) method in any location you
-	   would use the variable
+    delimiters = [pipe,tab,semicolon,comma]
 
-	5. Example :
+    # Available formats
+    json = 1
+    yaml = 2
 
-	   import data.utils as utils
-
-	   c = utils.BastilleConfig()
-
-	   for row in c.check_attr([c_var_name, c_default_value]):
-			<do stuff>
-
-		* Where c_var is a configurable variable
-		** In usage, set default to False to test for attribute existence
-
-	6. Functionality - the Class method check_attr will check the dictionary
-	   containing the class members (excluding sytem '__' members).  If the
-	   attribute exists in the dictionary, the attribute value is returned.
-	   Otherwise, the default passed value is returned.
-	'''
-
-	def __init__(self,fpath):
+	def __init__(self,fpath,conf_type=0):
 		try:
 			self.fpath = fpath
-			self.vals = self.load_config()
-			# Dynamically set class attributes from config
-			for row in self.vals:
-				setattr(self, row[0], [row[1],row[2]])
+			self.vals = self.load_config(conf_type)
 		except Exception as e:
 			raise
 
@@ -267,9 +236,54 @@ class PokeyConfig(object):
 		except Exception as e:
 			raise
 
-	def load_config(self):
+    def load_json(self,fpath):
+        with open(fpath) as json_data:
+            retval = json.load(json_data)
+
+        return retval
+
+    def load_yaml(self,fpath):
+        with open(fpath) as yaml_data:
+            retval = yaml.load(yaml_data)
+
+        return retval
+
+    def save_json(self,fpath,conf_dict):
+        try:
+            with open(fpath,'w') as json_out:
+                json.dump(conf_dict,json_out)
+        except Exception as e:
+            retval = e
+        else:
+            retval = True
+
+    def save_yaml(self,fpath,conf_dict):
+        try:
+            with open(fpath,'w') as yaml_out:
+                yaml.dump(conf_dict,yaml_out)
+        except Exception as e:
+            retval = e
+        else:
+            reval = True
+
+    def convert_delimited(self,inpath,out_type):
+
+        
+
+        if out_type is PokeyConfig.json:
+            suffix = 'json'
+        elif out_type is PokeyConfig.yaml:
+            suffix = 'yaml'
+
+        else:
+            raise AssertionError("Invalid Output Type : {}".format(out_type))
+
+	def load_config(self,inpath=None):
 		try:
-			with open(self.fpath, 'rb') as c:
+            if inpath is None:
+                inpath=self.fpath
+
+			with open(inpath, 'rb') as c:
 				return [row.rstrip().split('%') for row in c.readlines() if '#' not in row and row.strip() != '']
 		except:
 			raise
