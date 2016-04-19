@@ -197,6 +197,7 @@ class PokeyConfig(object):
     tab = '\t'
     semicolon = ';'
     comma = ','
+    percent = '%'
 
     delimiters = [pipe,tab,semicolon,comma]
 
@@ -204,12 +205,22 @@ class PokeyConfig(object):
     json = 1
     yaml = 2
 
-	def __init__(self,fpath,conf_type=0):
+	def __init__(self,fpath,conf_type=1,auto_apply=False):
 		try:
 			self.fpath = fpath
-			self.vals = self.load_config(conf_type)
+			self.load_config(conf_type)
+            self.loaded_type = conf_type
+            if auto_apply:
+                self.apply_config()
 		except Exception as e:
 			raise
+
+    def apply_config(self):
+        # Creates class attributes from dictionary pairs
+        # (Optional)
+
+        for key,val in enumerate(self.conf_dict):
+            setattr(self,key,val)
 
 	def __str__(self):
 		#Prints all non-standard methods and attributes
@@ -219,36 +230,22 @@ class PokeyConfig(object):
 				retval+='{}.{}={}\n'.format(type(self).__name__,key, value[0])
 		return retval.strip('\n') # Strip the final \n
 
-	def check_attr(self, val):
-		if val[0] in self.__dict__.keys():
-			return self.__dict__[val[0]][0]
-		else:
-			return val[1]
-
-	# Saves config (overwrites) - Not yet implemented
-	def write_config(self):
-		try:
-			with open(self.fpath, 'wb') as o:
-				conf_dec(o, True)
-				o.writelines(''.join(["'{}'\t'{}'\t'{}'".format((key, self.__dict__[key][0],
-												self.__dict__[key][1]) for key in self.__dict__.keys())]))
-				conf_dec(o)
-		except Exception as e:
-			raise
-
     def load_json(self,fpath):
+        assert fpath.endswith(".json"),"Invalid file path to load as JSON"
         with open(fpath) as json_data:
             retval = json.load(json_data)
 
         return retval
 
     def load_yaml(self,fpath):
+        assert fpath.endswith(".yaml"),"Invalid file path to load as YAML"
         with open(fpath) as yaml_data:
             retval = yaml.load(yaml_data)
 
         return retval
 
     def save_json(self,fpath,conf_dict):
+        assert fpath.endswith(".json"),"Invalid file path to save as JSON"
         try:
             with open(fpath,'w') as json_out:
                 json.dump(conf_dict,json_out)
@@ -258,6 +255,7 @@ class PokeyConfig(object):
             retval = True
 
     def save_yaml(self,fpath,conf_dict):
+        assert fpath.endswith(".yaml"),"Invalid file path to save as YAML"
         try:
             with open(fpath,'w') as yaml_out:
                 yaml.dump(conf_dict,yaml_out)
@@ -266,28 +264,94 @@ class PokeyConfig(object):
         else:
             reval = True
 
-    def convert_delimited(self,inpath,out_type):
+    def convert_file_path(self,inpath,suffix):
+        return '.'.join(inpath.split('.')[:-1].append(suffix))
 
-        
+    def convert_delimited(self,inpath,out_type):
 
         if out_type is PokeyConfig.json:
             suffix = 'json'
+            write_method = self.save_json
+            read_method = self.load_json
         elif out_type is PokeyConfig.yaml:
             suffix = 'yaml'
-
+            write_method = self.save_yaml
+            read_method = self.load_yaml
         else:
-            raise AssertionError("Invalid Output Type : {}".format(out_type))
+            raise AssertionError('Invalid Output Type: {}'.format(out_type))
 
-	def load_config(self,inpath=None):
-		try:
-            if inpath is None:
-                inpath=self.fpath
+        opath = self.convert_file_path(inpath,suffix)
+        write_method(opath,self.conf_dict)
 
-			with open(inpath, 'rb') as c:
-				return [row.rstrip().split('%') for row in c.readlines() if '#' not in row and row.strip() != '']
-		except:
-			raise
-			return 1
+        # Test twice before failing
+        if not self.verify_conversion(read_method(opath)):
+            if not self.verify_conversion(read_method(opath)):
+                raise AssertionError('Conversion Error! Please log and report')
+
+        return read_method(opath)
+
+    def write_config(self,**kw):
+
+        if self.loaded_type == PokeyConfig.json:
+            write_method = self.save_json
+        elif self.loaded_type == PokeyConfig.yaml:
+            write_method = self.save_yaml
+
+        write_method(self.fpath,self.conf_dict)
+
+    def verify_conversion(self,compare_dict):
+
+        for key,val in enumerate(self.conf_dict):
+            try:
+                assert compare_dict[key]==val, \
+                    "Conversion error! Retrying (val:{}|comp:{})".format(
+                                                        val,compare_dict[key]
+                                                        )
+            except AssertionError,KeyError:
+                return False
+        return True
+
+	def load_config(self,conf_type,inpath=None):
+
+       if inpath is None:
+            inpath=self.fpath
+       if conf_type not in [PokeyConfig.json,PokeyConfig.yaml]:
+            print "[*] Legacy PokeyConfig configuration detected!"
+            while True:
+                print "\tConvert to [J]SON"
+                print "\tConvert to [Y]AML"
+                choice = raw_input("\tSelection > ")
+                if choice.upper() == 'J':
+                    out_type = PokeyConfig.json
+                    break
+                elif choice.upper() == 'Y':
+                    out_type = PokeyConfig.yaml
+                    break
+                else:
+                    print "[*] Invalid choice!  Conversion is required"
+
+            new_config = self.convert_delimited(inpath,out_type)
+
+        elif conf_type == PokeyConfig.json:
+            self.conf_dict = self.load_json(inpath)
+
+        elif conf_type == PokeyConfig.yaml:
+            self.conf_dict = self.load_yaml(inpath)
+        else:
+            raise AssertionError("Invalid config type {}".format(conf_type))
+
+        return True
+
+    def load_delimited(self,inpath,delimiter='%'):
+        # Default delimiter for PokeyWorks applications was %
+
+        with open(inpath, 'rb') as c:
+            data = c.readlines()
+
+        for row in data:
+            if "#" not in row and row.strip() != '':
+                vals = row.split(delimiter)
+                self.conf_dict[vals[0]] = vals[1]
 
 #****************************PokeyLanguage******************************
 #class PokeyLanguage(object):
