@@ -1,6 +1,7 @@
 #!/usr/bin/env python2.7
 # -*- coding: utf-8 -*-
 
+import os
 import sys
 import time
 
@@ -16,48 +17,164 @@ class AppConfig():
         self.print_app_headers()
 
         self.cfg = None
-        menu_queue = []
-        highlight = Color.BLUE
+        self.highlight = Color.BLUE
+
         # Menu option groups :
-        submenu_1 = [
-                ('View options',['v',highlight],self.print_config,[self.cfg]),
-                ('Add an option',['a',highlight],self.add_option,[self.cfg]),
-                ('Edit an option',['e',highlight],self.edit_option,[self.cfg]),
-                ('Remove an option',['r',highlight],self.remove_option,[self.cfg]),
-                ('Write Config',['w',highlight],self.write_config,[self.cfg]),
-                ('Back',['b',Color.RED],None),
-                ]
-        main_menu = [
-                ('Open a file',['o',highlight],self.file_select,[submenu_1]),
-                ('New config file',['n',highlight],self.create_config,[self.cfg]),
-                ('Convert a file',['c',highlight],self.convert_file,[]),
-                ('Quit',['q',highlight],sys.exit,[0]),
-                ]
+        #       {
+        #       label:,
+        #       hotkey_char:
+        #       hotkey_color:
+        #       method:
+        #       method_args:[]
+        #       menu_action:
+        #       }
+        #       menu_actions : None = Remain, True = Previous, False = Quit
+
+        self.submenu_1 = [
+            {
+            'label':'\nView options',
+            'hotkey_char':'V',
+            'hotkey_color':self.highlight,
+            'method':self.print_config,
+            },
+            {
+            'label':'Add an option',
+            'hotkey_char':'A',
+            'hotkey_color':self.highlight,
+            'method':self.add_option,
+            },
+            {
+            'label':'Edit an option',
+            'hotkey_char':'E',
+            'hotkey_color':self.highlight,
+            'method':self.edit_option,
+            },
+            {
+            'label':'Remove an option',
+            'hotkey_char':'R',
+            'hotkey_color':self.highlight,
+            'method':self.remove_option,
+            },
+            {
+            'label':'Write config',
+            'hotkey_char':'W',
+            'hotkey_color':self.highlight,
+            'method':self.write_config,
+            },
+            {
+            'label':'Back',
+            'hotkey_char':'B',
+            'hotkey_color':Color.RED,
+            'menu_action':True
+            }
+            ]
+        self.main_menu = [
+            {
+            'label':'\nOpen a file',
+            'hotkey_char':'O',
+            'hotkey_color':self.highlight,
+            'method':self.file_select,
+            },
+           # {
+           # 'label':'New config file',
+           # 'hotkey_char':'N',
+           # 'hotkey_color':self.highlight,
+           # 'method':self.create_config,
+           # },
+           # {
+           # 'label':'Convert a file',
+           # 'hotkey_char':'C',
+           # 'hotkey_color':self.highlight,
+           # 'method':self.create_config,
+           # },
+            {
+            'label':'Quit',
+            'hotkey_char':'Q',
+            'hotkey_color':Color.RED,
+            'menu_action':False
+            }
+            ]
 
         while True:
             # Main application execution loop
             try:
-                pass
+                self.menu_queue = [self.main_menu]
+                self.menu()
             except SystemExit,KeyboardInterrupt:
                 ch = raw_input('Really quit? ')
                 if ch.upper()=='Y':
                     sys.exit(0)
                 else:
                     continue
+            else:
+                ch = raw_input("Exit? ")
+                if ch.upper() == 'Y':
+                    sys.exit(0)
+
+    def menu(self):
+        # Prints menu options and handles user selections
+        # menu_queue is a LIFO queue
+
+        while True:
+            current_menu = self.menu_queue[-1]
+            selection_msg = "\nSelection > "
+            valid_selections = [i['hotkey_char'] for i in current_menu]
+
+            for item in current_menu:
+                # Apply color to hotkey character
+                hotkey = color_wrap(item['hotkey_char'],item['hotkey_color'])
+                # Populate text
+                text = list(item['label'])
+                # Replace hotkey character with colorized value
+                text[text.index(item['hotkey_char'])]=hotkey
+                print ''.join(text)
+
+            ch = raw_input(selection_msg)
+
+            if ch.upper() not in valid_selections:
+                selection_msg = '\nInvalid Selection > '
+            else:
+                selection_msg = '\nSelection > '
+
+                for item in current_menu:
+                    if ch.upper()==item['hotkey_char']:
+                        run_method = item.get('method')
+                        args = item.get('method_args')
+                        action = item.get('menu_action')
+                        if run_method is not None:
+                            if args is not None:
+                                run_method(*args)
+                                break
+                            else:
+                                run_method()
+                                break
+                        if action is not None:
+                            if not action:
+                                # Exit the app with success msg
+                                sys.exit(0)
+                            else:
+                                self.menu_queue.pop()
+                        else:
+                            # Add the current menu to the queue to stay
+                            self.menu_queue.append(current_menu)
+
+
 
     def print_app_headers(self):
         header_path = 'app_header.txt'
         with open(header_path, 'r') as f:
             data = f.readlines()
 
+        slp_time = 1.0
         for row in data:
-            time.sleep(0.05)
+            time.sleep(slp_time)
             print row.rstrip()
+            slp_time = slp_time - slp_time/7
 
     def print_config(self):
-        print 'Loaded Options :'
-        for key in self.self.cfg.conf_dict:
-            print ' [{}] = {}'.format(key,self.cfg.conf_dict)
+        print '\nLoaded Options :'
+        for key in self.cfg.conf_dict:
+            print ' [{}] = {}'.format(key,self.cfg.conf_dict[key])
 
     def add_option(self):
         key = raw_input('Option : ')
@@ -66,8 +183,8 @@ class AppConfig():
 
     def edit_option(self):
         while True:
-            print_config(self.cfg)
-            print '[Edit Option]'
+            self.print_config()
+            print '\n[Edit Option]'
             key = raw_input('Selection (q quits) > ')
             if key.upper() in ['Q','QUIT','EXIT']:
                 break
@@ -85,7 +202,8 @@ class AppConfig():
             return
         elif opt is not None:
             print "Option not in list!"
-        self.print_config(cfg)
+        self.print_config()
+        print '\n[Remove Option]'
         key = raw_input('Selection (q quits) > ')
         if key.upper() in ['Q','QUIT','EXIT']:
             return
@@ -95,22 +213,22 @@ class AppConfig():
         print 'Option not found!'
 
     def write_config(self):
-        self.cfg.write_cfg()
+        self.cfg.write_config()
 
     def file_select(self):
         fname = raw_input("Enter a path : ")
         try:
-            finfo = os.stat(fname)
-            print fname
-            print finfo
+            filesize = os.stat(fname).st_size
+            print fname, filesize
             ch = raw_input("Load this config? ")
             if ch.upper() in ['Y','YES']:
                 if fname.endswith('.json'):
-                    self.cfg = pokeyworks.PokeyConfig(fname)
+                    self.cfg = PokeyConfig(fname)
                 elif fname.endswith('.yaml'):
-                    self.cfg = pokeyworks.PokeyConfig(fname,2)
+                    self.cfg = PokeyConfig(fname,2)
                 else:
                     raise AssertionError("Unknown file type : {}".format(fname))
+            self.menu_queue.append(self.submenu_1)
         except OSError:
             print "File not found! {}".format(fname)
 
@@ -124,11 +242,11 @@ class AppConfig():
             print "Invalid file type : {}".format(fname)
             return False
         try:
-            with open(fname,'x') as touchfile:
+            with open(fname,'a') as touchfile:
                 #Touch!
                 pass
         except IOError:
-            print "Unable to stat file : {} - check your permissions foo!".format(fname)
+            print "Unable to stat file : {}".format(fname)
             return False
         self.cfg = PokeyConfig(*args)
         ch = raw_input("Config file created!  Add options? ")
@@ -147,14 +265,9 @@ class AppConfig():
             self.cfg.save_json(self.cfg.fpath,self.cfg.conf_dict)
             self.cfg.loaded_type = PokeyConfig.json
         else:
-            raise AssertionError("Unknown type : {}".format(self.self.cfg.loaded_type))
+            raise AssertionError("Unknown type : {}".format(self.cfg.loaded_type))
 
         print "{} converted to {}".format(fpath,self.cfg.fpath)
-    def menu(opts):
-        # Prints menu options and handles user selections
-
-        while True:
-            break 
 
 if __name__=='__main__':
     AppConfig()
