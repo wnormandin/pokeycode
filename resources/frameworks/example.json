@@ -10,7 +10,6 @@
     "flex_limit": "0", 
     "max_loops": "30", 
     "path_alg": "gbf_search", 
-    "test": "9", 
     "verbose": "1", 
     "version": "0.1"
 }

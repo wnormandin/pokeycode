@@ -4,6 +4,7 @@
 import os
 import sys
 import time
+import argparse
 
 # Colorize console output
 from pokeyworks import Color, color_wrap
@@ -14,7 +15,10 @@ from pokeyworks import PokeyConfig
 class AppConfig():
 
     def __init__(self):
-        self.print_app_headers()
+        self.parse_args()
+
+        if not self.args.skip:
+            self.print_app_headers()
 
         self.cfg = None
         self.highlight = Color.BLUE
@@ -99,6 +103,14 @@ class AppConfig():
             # Main application execution loop
             try:
                 self.menu_queue = [self.main_menu]
+
+                # If a file argument is passed, load it
+                # and move to the config submenu
+                if self.args.file != '':
+                    self.menu_queue.append(self.submenu_1)
+                    print self.args.file
+                    self.open_file()
+
                 self.menu()
             except SystemExit,KeyboardInterrupt:
                 ch = raw_input('Really quit? ')
@@ -110,6 +122,22 @@ class AppConfig():
                 ch = raw_input("Exit? ")
                 if ch.upper() == 'Y':
                     sys.exit(0)
+
+    def parse_args(self):
+        parser = argparse.ArgumentParser(description='Process PokeyConfig files',
+                            epilog='To convert, pass a legacy file and conversion \
+                            format, you will be prompted to choose a format.'
+                            )
+        parser.add_argument('-k','--skip',help='Skip the intro banner',
+                            action='store_true')
+        parser.add_argument('-d','--debug',help='Enable debugging messages',
+                            action='store_true')
+        parser.add_argument('-f','--file',help='Specify a file',
+                            default='')
+        parser.add_argument('-c','--convert',
+                            help='w/--file, convert file format, 1=json,2=yaml',
+                            default=PokeyConfig.json, type=int,nargs=1)
+        self.args = parser.parse_args()
 
     def menu(self):
         # Prints menu options and handles user selections
@@ -214,6 +242,16 @@ class AppConfig():
 
     def write_config(self):
         self.cfg.write_config()
+
+    def open_file(self):
+        fname = self.args.file
+        print 'Opening {}'.format(fname)
+        if fname.endswith('.json'):
+            self.cfg = PokeyConfig(fname)
+        elif fname.endswith('.yaml'):
+            self.cfg = PokeyConfig(fname,PokeyConfig.yaml)
+        else:
+            self.convert_file()
 
     def file_select(self):
         fname = raw_input("Enter a path : ")
