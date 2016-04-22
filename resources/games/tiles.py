@@ -53,20 +53,20 @@ class WorldTile(object):
                                                             self.tile_type
                                                             )
 
-        self.tile_initialize(game)
+        self.tile_initialize()
 
-    def tile_initialize(self,game):
+    def tile_initialize(self):
         for item in ['mobs','items','traps']:
             self.gen(item)
 
-    def gen(self,game,tile_content):
+    def gen(self,tile_content):
         for item_type in self.eligibles:
             if item_type==tile_content:
                 possibles = self.eligibles[item_type]
 
-        self.level = game.player.level
+        self.level = 10
         item_list = getattr(self,item_type)
-        succ,bonus = RandomRoll(game.player,self,self.spawn_rate)
+        succ,bonus = RandomRoll(self,self,self.spawn_rate)
 
         if succ and bonus:
             repetitions = 2
