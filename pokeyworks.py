@@ -256,7 +256,13 @@ class PokeyConfig(object):
         assert fpath.endswith(".json"),"Invalid file path to save as JSON"
         try:
             with open(fpath,'w') as json_out:
-                json.dump(conf_dict,json_out)
+                json.dump(
+                        conf_dict,
+                        json_out,
+                        sort_keys=True,
+                        indent=4,
+                        ensure_ascii=False
+                        )
         except Exception as e:
             retval = e
         else:
@@ -266,7 +272,7 @@ class PokeyConfig(object):
         assert fpath.endswith(".yaml"),"Invalid file path to save as YAML"
         try:
             with open(fpath,'w') as yaml_out:
-                yaml.dump(conf_dict,yaml_out)
+                yaml.dump(conf_dict,yaml_out,default_flow_style=True)
         except Exception as e:
             retval = e
         else:
