@@ -246,7 +246,7 @@ class PokeyConfig(object):
         return retval
 
     def load_yaml(self,fpath):
-        assert fpath.endswith(".yaml"),"Invalid file path to load as YAML"
+        assert fpath.endswith(".yml"),"Invalid file path to load as YAML"
         with open(fpath) as yaml_data:
             retval = yaml.safe_load(yaml_data)
 
@@ -269,7 +269,7 @@ class PokeyConfig(object):
             retval = True
 
     def save_yaml(self,fpath,conf_dict):
-        assert fpath.endswith(".yaml"),"Invalid file path to save as YAML"
+        assert fpath.endswith(".yml"),"Invalid file path to save as YAML"
         try:
             with open(fpath,'w') as yaml_out:
                 yaml.dump(conf_dict,yaml_out,default_flow_style=True)
@@ -290,7 +290,7 @@ class PokeyConfig(object):
             write_method = self.save_json
             read_method = self.load_json
         elif out_type is PokeyConfig.yaml:
-            suffix = 'yaml'
+            suffix = 'yml'
             write_method = self.save_yaml
             read_method = self.load_yaml
         else:

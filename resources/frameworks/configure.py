@@ -248,7 +248,7 @@ class AppConfig():
         print 'Opening {}'.format(fname)
         if fname.endswith('.json'):
             self.cfg = PokeyConfig(fname)
-        elif fname.endswith('.yaml'):
+        elif fname.endswith('.yml'):
             self.cfg = PokeyConfig(fname,PokeyConfig.yaml)
         else:
             self.convert_file()
@@ -262,7 +262,7 @@ class AppConfig():
             if ch.upper() in ['Y','YES']:
                 if fname.endswith('.json'):
                     self.cfg = PokeyConfig(fname)
-                elif fname.endswith('.yaml'):
+                elif fname.endswith('.yml'):
                     self.cfg = PokeyConfig(fname,2)
                 else:
                     raise AssertionError("Unknown file type : {}".format(fname))
@@ -274,7 +274,7 @@ class AppConfig():
         fname = raw_input("Config file name : ")
         if fname.endswith(".json"):
             args = [fname]
-        elif fname.endswitch(".yaml"):
+        elif fname.endswitch(".yml"):
             args = [fname,2]
         else:
             print "Invalid file type : {}".format(fname)
@@ -295,7 +295,7 @@ class AppConfig():
 
     def convert_file(self,fpath):
         if self.cfg.loaded_type == PokeyConfig.json:
-            self.cfg.fpath = self.cfg.convert_file_path(fpath,'.yaml')
+            self.cfg.fpath = self.cfg.convert_file_path(fpath,'.yml')
             self.cfg.save_yaml(self.cfg.fpath,self.cfg.conf_dict)
             self.cfg.loaded_type = PokeyConfig.yaml
         elif self.cfg.loaded_type == PokeyConfig.yaml:
