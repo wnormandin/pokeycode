@@ -71,7 +71,28 @@ class AppConfig():
             'hotkey_color':Color.RED,
             'menu_action':True
             }
-            ]
+            ],
+        self.convert_menu = [
+            {
+            'label':'\nConvert (JSON <-> YAML)',
+            'hotkey_char':'C',
+            'hotkey_color':self.highlight,
+            'method':self.file_convert,
+            },
+            {
+            'label':'Encode (JSON|YAML -> base64 JSON)',
+            'hotkey_char':'E',
+            'hotkey_color':self.highlight,
+            'method':self.file_convert,
+            'method_args':PokeyConfig.encoded
+            },
+            {
+            'label':'Back',
+            'hotkey_char':'B',
+            'hotkey_color':Color.RED,
+            'menu_action':True
+            }
+            ],
         self.main_menu = [
             {
             'label':'\nOpen a file',
@@ -85,12 +106,13 @@ class AppConfig():
            # 'hotkey_color':self.highlight,
            # 'method':self.create_config,
            # },
-           # {
-           # 'label':'Convert a file',
-           # 'hotkey_char':'C',
-           # 'hotkey_color':self.highlight,
-           # 'method':self.create_config,
-           # },
+            {
+            'label':'Convert a file',
+            'hotkey_char':'C',
+            'hotkey_color':self.highlight,
+            'method':self.go_to_submenu,
+            'method_args':self.convert_menu
+            },
             {
             'label':'Quit',
             'hotkey_char':'Q',
@@ -123,6 +145,33 @@ class AppConfig():
                 if ch.upper() == 'Y':
                     sys.exit(0)
 
+    def file_convert(self,out_type=None):
+
+        infile = raw_input("Specify an input file (q quits) > ")
+
+        if infile.upper()=='Q':
+            return
+
+        if infile.endswith('.yml'):
+            self.cfg = PokeyConfig(infile,PokeyConfig.yaml)
+        elif infile.endswith('.json'):
+            self.cfg = PokeyConfig(infile)
+        elif infile.endswith('.cfg'):
+            self.cfg = PokeyConfig(infile,PokeyConfig.encoded)
+        else:
+            print 'Invalid file format : {}'.format(infile)
+            return
+
+        if out_type==None and self.cfg.loaded_type==PokeyConfig.json:
+            out_type=PokeyConfig.yaml
+        elif out_type==None and self.cfg.loaded_type==PokeyConfig.yaml:
+            out_type=PokeyConfig.json
+
+        self.cfg.convert_config(out_type)
+
+    def go_to_submenu(self,submenu):
+        self.menu_queue.append(submenu)
+
     def parse_args(self):
         parser = argparse.ArgumentParser(description='Process PokeyConfig files',
                             epilog='To convert, pass a legacy file and conversion \
@@ -135,7 +184,7 @@ class AppConfig():
         parser.add_argument('-f','--file',help='Specify a file',
                             default='')
         parser.add_argument('-c','--convert',
-                            help='w/--file, convert file format, 1=json,2=yaml',
+                            help='w/--file, convert file format, 1=json,2=yaml,3=base64',
                             default=PokeyConfig.json, type=int,nargs=1)
         self.args = parser.parse_args()
 
@@ -171,8 +220,12 @@ class AppConfig():
                         action = item.get('menu_action')
                         if run_method is not None:
                             if args is not None:
-                                run_method(*args)
-                                break
+                                try:
+                                    run_method(*args)
+                                    break
+                                except TypeError:
+                                    run_method(args)
+                                    break
                             else:
                                 run_method()
                                 break
@@ -264,6 +317,8 @@ class AppConfig():
                     self.cfg = PokeyConfig(fname)
                 elif fname.endswith('.yml'):
                     self.cfg = PokeyConfig(fname,2)
+                elif fname.endswith('.cfg'):
+                    self.cfg = PokeyConfig(fname,3)
                 else:
                     raise AssertionError("Unknown file type : {}".format(fname))
             self.menu_queue.append(self.submenu_1)

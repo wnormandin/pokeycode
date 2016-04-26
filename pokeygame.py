@@ -22,11 +22,11 @@ class PokeyGame(object):
     for basic terminal games.  Functionality is not
     guaranteed """
 
-    def __init__(self,game_name,conf_path='pokeygame.conf'):
+    def __init__(self,game_name,conf_path='pokeygame.json'):
 
         # Game initialization 
         self.name = game_name
-        self.conf = fw.PokeyConfig(conf_path)
+        self.conf = fw.PokeyConfig(conf_path,1,True)
         self.config_init()
 
         for item in [
@@ -108,7 +108,7 @@ class PokeyGame(object):
         # is set instead
         for opt in game_opts:
             try:
-                setattr(self,opt[0],getattr(self.conf,opt[0]))
+                setattr(self,opt[0],self.conf.conf_dict[opt[0]])
             except:
                 setattr(self,opt[0],opt[1])
                 continue
@@ -150,8 +150,8 @@ class PokeyGame(object):
 
             z = loc[2]      # Load the current floor (z)
 
-            for x in range(game.conf.x_dim[0]):
-                for y in range(game.conf.y_dim[0]):
+            for x in range(game.conf.x_dim):
+                for y in range(game.conf.y_dim):
                     # Draw a map here!
                     pass
 
@@ -183,9 +183,9 @@ class MenuConfig(object):
         elif menu_type==MenuConfig.map_size_menu:
             # Set x / y / z Parameters
             return_items = [
-                ('set x ({0})'.format(game.conf.dim_x[0]),game.set_x),
-                ('set y ({0})'.format(game.conf.dim_y[0]),game.set_y),
-                ('set z ({0})'.format(game.conf.dim_z[0]),game.set_z),
+                ('set x ({0})'.format(game.conf.dim_x),game.set_x),
+                ('set y ({0})'.format(game.conf.dim_y),game.set_y),
+                ('set z ({0})'.format(game.conf.dim_z),game.set_z),
                 ('back',game.world_menu.display)
                 ]
         else:
@@ -344,15 +344,15 @@ class PokeyWorld:
 
     def set_dims(self,conf):
         self.logger.debug("\tGrabbing map dimensions")
-        self.dim_x = int(conf.dim_x[0])
-        self.dim_y = int(conf.dim_y[0])
-        self.dim_z = int(conf.dim_z[0])
+        self.dim_x = int(conf.dim_x)
+        self.dim_y = int(conf.dim_y)
+        self.dim_z = int(conf.dim_z)
 
 
     def check_dimensions(self):
-        c_z = int(self.conf.dim_z[0])
-        c_y = int(self.conf.dim_y[0])
-        c_x = int(self.conf.dim_x[0])
+        c_z = int(self.conf.dim_z)
+        c_y = int(self.conf.dim_y)
+        c_x = int(self.conf.dim_x)
         x = self.dim_x
         y = self.dim_y
         z = self.dim_z
@@ -401,12 +401,12 @@ class PokeyWorld:
     def grid_init_check(self):
         """ Verifies the given dimensions & returns the WorldGenerator gird """
         #try:
-            #assert isinstance(self.conf.dim_x[0],int),(
-            #    'Bad dimension x:{0}'.format(self.conf.dim_x[0]))
-            #assert isinstance(self.conf.dim_y[0],int),(
-            #    'Bad dimension y:{0}'.format(self.conf.dim_y[0]))
-            #assert isinstance(self.conf.dim_z[0],int),(
-            #    'Bad dimension z:{0}'.format(self.conf.dim_z[0]))
+            #assert isinstance(self.conf.dim_x,int),(
+            #    'Bad dimension x:{0}'.format(self.conf.dim_x))
+            #assert isinstance(self.conf.dim_y,int),(
+            #    'Bad dimension y:{0}'.format(self.conf.dim_y))
+            #assert isinstance(self.conf.dim_z,int),(
+            #    'Bad dimension z:{0}'.format(self.conf.dim_z))
         #except AssertionError:
             #raise
 
@@ -426,7 +426,7 @@ class PokeyWorld:
                                         self.dim_z,
                                         0,verbose,self.logger,2,
                                         post_check,
-                                        self.conf.path_alg[0]
+                                        self.conf.path_alg
                                         )
             except:
                 if max_trys > 0:
