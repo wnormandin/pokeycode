@@ -119,7 +119,7 @@ def setup_logger(name, level, lpath='./tmp/last_run.log',fpath=__name__):
 
 #****************************** File Ops *******************************
 
-def read_csv(fpath, delim='\t',qchar="'"):
+def read_csv(fpath, delim=',',qchar="'"):
 	if chk_deps(['csv']):
 		try:
 			with open(fpath, 'rb') as f:
@@ -141,10 +141,11 @@ def valid_date(s):
 
 # Return path to a resource based on relative path passed
 def resource_path(fpath,rel_path):
-	dir_of_py_file = os.path.dirname(fpath)
-	rel_path_to_resource = os.path.join(dir_of_py_file, rel_path)
-	abs_path_to_resource = os.path.abspath(rel_path_to_resource)
-	return abs_path_to_resource
+    dir_of_py_file = os.path.dirname(fpath)
+    rel_path_to_resource = os.path.join(dir_of_py_file, rel_path)
+    abs_path_to_resource = os.path.abspath(rel_path_to_resource)
+    return abs_path_to_resource
+
 
 # With the Color class, color_wrap provides limited color, underline, and boldface
 # type when outputting to consoles or logs

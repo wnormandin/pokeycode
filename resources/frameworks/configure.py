@@ -10,12 +10,15 @@ import argparse
 from pokeyworks import Color, color_wrap
 # Configuration base class
 from pokeyworks import PokeyConfig
+from pokeyworks import resource_path
 
 
 class AppConfig():
 
     def __init__(self):
         self.parse_args()
+        self.cwd = os.getcwd()  # Grab the script execution directory
+        self.mydir, self.mypath = os.path.split(__file__)
 
         if not self.args.skip:
             self.print_app_headers()
@@ -148,6 +151,7 @@ class AppConfig():
     def file_convert(self,out_type=None):
 
         infile = raw_input("Specify an input file (q quits) > ")
+        infile = self.check_cwd(infile)
 
         if infile.upper()=='Q':
             return
@@ -168,6 +172,29 @@ class AppConfig():
             out_type=PokeyConfig.json
 
         self.cfg.convert_config(out_type)
+
+    def check_cwd(self,infile,rel=True):
+
+        # Relative flag will be handled as follows :
+        #
+        # rel = relative to the execution path
+        #
+        # True = base the file path on the execution directory 
+        #   - Examples : configuration input and output files
+        # False = base the file path on the configure.py script location
+        #   - Examples : configure.py resources
+        # None = base the file path on the pokeyworks.py directory
+        #   - Examples : accessing other pokeycode resources
+
+        script_dir = os.path.dirname(__file__)
+
+        if self.cwd != script_dir and rel=:
+            path_base, fname = os.path.split(infile)
+            retval = os.path.join(self.cwd,fname)
+        else:
+            retval = infile
+
+        return retval
 
     def go_to_submenu(self,submenu):
         self.menu_queue.append(submenu)
@@ -239,10 +266,8 @@ class AppConfig():
                             # Add the current menu to the queue to stay
                             self.menu_queue.append(current_menu)
 
-
-
     def print_app_headers(self):
-        header_path = 'app_header.txt'
+        header_path = self.check_cwd('app_header.txt')
         with open(header_path, 'r') as f:
             data = f.readlines()
 
