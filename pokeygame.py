@@ -22,11 +22,11 @@ class PokeyGame(object):
     for basic terminal games.  Functionality is not
     guaranteed """
 
-    def __init__(self,game_name,conf_path='pokeygame.conf'):
+    def __init__(self,game_name,conf_path='pokeygame.json'):
 
         # Game initialization 
         self.name = game_name
-        self.conf = fw.PokeyConfig(conf_path)
+        self.conf = fw.PokeyConfig(conf_path,fw.PokeyConfig.json,True)
         self.config_init()
 
         for item in [
@@ -344,15 +344,15 @@ class PokeyWorld:
 
     def set_dims(self,conf):
         self.logger.debug("\tGrabbing map dimensions")
-        self.dim_x = int(conf.dim_x[0])
-        self.dim_y = int(conf.dim_y[0])
-        self.dim_z = int(conf.dim_z[0])
+        self.dim_x = int(conf.dim_x)
+        self.dim_y = int(conf.dim_y)
+        self.dim_z = int(conf.dim_z)
 
 
     def check_dimensions(self):
-        c_z = int(self.conf.dim_z[0])
-        c_y = int(self.conf.dim_y[0])
-        c_x = int(self.conf.dim_x[0])
+        c_z = int(self.conf.dim_z)
+        c_y = int(self.conf.dim_y)
+        c_x = int(self.conf.dim_x)
         x = self.dim_x
         y = self.dim_y
         z = self.dim_z
@@ -426,7 +426,7 @@ class PokeyWorld:
                                         self.dim_z,
                                         0,verbose,self.logger,2,
                                         post_check,
-                                        self.conf.path_alg[0]
+                                        self.conf.path_alg
                                         )
             except:
                 if max_trys > 0:
