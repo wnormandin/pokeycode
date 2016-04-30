@@ -756,8 +756,8 @@ class CLInvoker(object):
             ("-r","--random","generates a randomized map",'store_true'),
             ("-f","--fpath","specify output file",None,'world_gen_output.py',str),
             ("-c","--conf","specify conf file",None,'world_gen.conf',str),
-            ("-x","--xdim","map x dimension",None,25,int),
-            ("-y","--ydim","map y dimension",None,25,int),
+            ("-x","--xdim","map x dimension",None,30,int),
+            ("-y","--ydim","map y dimension",None,20,int),
             ("-z","--zdim","map floor depth",None,3,int),
             ('-e','--elastic','specify flexible dimensions',None,3,int),
             ('-v','--verbose','enable verbose messages','store_true'),
@@ -779,6 +779,12 @@ class CLInvoker(object):
 
         self.logger.debug('\tParsing arguments')
         self.args=parser.parse_args()
+
+        # Handle randomization here, if enabled
+        if self.args.random:
+            self.args.xdim = random.randint(30,50)
+            self.args.ydim = random.randint(20,40)
+            self.args.zdim = random.randint(3,5)
 
 if __name__=='__main__':
     CLInvoker()

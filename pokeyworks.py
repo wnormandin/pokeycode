@@ -30,6 +30,8 @@ import time
 import sys
 import multiprocessing
 import inspect
+import base64
+from cStringIO import StringIO
 
 # Conditional imports
 try:
@@ -117,7 +119,7 @@ def setup_logger(name, level, lpath='./tmp/last_run.log',fpath=__name__):
 
 #****************************** File Ops *******************************
 
-def read_csv(fpath, delim='\t',qchar="'"):
+def read_csv(fpath, delim=',',qchar="'"):
 	if chk_deps(['csv']):
 		try:
 			with open(fpath, 'rb') as f:
@@ -139,10 +141,11 @@ def valid_date(s):
 
 # Return path to a resource based on relative path passed
 def resource_path(fpath,rel_path):
-	dir_of_py_file = os.path.dirname(fpath)
-	rel_path_to_resource = os.path.join(dir_of_py_file, rel_path)
-	abs_path_to_resource = os.path.abspath(rel_path_to_resource)
-	return abs_path_to_resource
+    dir_of_py_file = os.path.dirname(fpath)
+    rel_path_to_resource = os.path.join(dir_of_py_file, rel_path)
+    abs_path_to_resource = os.path.abspath(rel_path_to_resource)
+    return abs_path_to_resource
+
 
 # With the Color class, color_wrap provides limited color, underline, and boldface
 # type when outputting to consoles or logs
@@ -216,6 +219,7 @@ class PokeyConfig(object):
     # Available formats
     json = 1
     yaml = 2
+    encoded = 3
 
     def __init__(self,fpath,conf_type=1,auto_apply=False):
 
@@ -245,9 +249,17 @@ class PokeyConfig(object):
 
         return retval
 
+    def yaml_constructor(self,loader,node):
+        return node.value
+
     def load_yaml(self,fpath):
-        assert fpath.endswith(".yml"),"Invalid file path to load as YAML"
+        assert fpath.endswith(".yml"), \
+            "Invalid file path to load as YAML : {}".format(fpath)
         with open(fpath) as yaml_data:
+            yaml.SafeLoader.add_constructor(
+                    "tag:yaml.org,2002:python/unicode",
+                    self.yaml_constructor
+                    )
             retval = yaml.safe_load(yaml_data)
 
         return retval
@@ -256,7 +268,13 @@ class PokeyConfig(object):
         assert fpath.endswith(".json"),"Invalid file path to save as JSON"
         try:
             with open(fpath,'w') as json_out:
-                json.dump(conf_dict,json_out)
+                json.dump(
+                        conf_dict,
+                        json_out,
+                        sort_keys=True,
+                        indent=4,
+                        ensure_ascii=False
+                        )
         except Exception as e:
             retval = e
         else:
@@ -266,7 +284,7 @@ class PokeyConfig(object):
         assert fpath.endswith(".yml"),"Invalid file path to save as YAML"
         try:
             with open(fpath,'w') as yaml_out:
-                yaml.dump(conf_dict,yaml_out)
+                yaml.dump(conf_dict,yaml_out,default_flow_style=True)
         except Exception as e:
             retval = e
         else:
@@ -276,6 +294,23 @@ class PokeyConfig(object):
         file_base = inpath.split('.')[:-1]
         file_base.append(suffix)
         return '.'.join(file_base)
+
+    def convert_config(self,out_type):
+        if self.loaded_type==out_type:
+            print "Config file is already in this format"
+            return
+        else:
+            cur_path = self.fpath
+            data,opath = self.convert_delimited(self.fpath,out_type)
+            print 'New config file created : {}'.format(opath)
+            self.rm_config(cur_path)
+
+    def rm_config(self,fpath):
+        rm_path = os.path.realpath(fpath)
+        print 'File : {}'.format(rm_path)
+        ch = raw_input('Really delete? > ')
+        if ch.upper() == 'Y':
+            os.remove(rm_path)
 
     def convert_delimited(self,inpath,out_type):
 
@@ -287,6 +322,10 @@ class PokeyConfig(object):
             suffix = 'yml'
             write_method = self.save_yaml
             read_method = self.load_yaml
+        elif out_type is PokeyConfig.encoded:
+            suffix = 'cfg'
+            write_method = self.do_encode
+            read_method = self.do_decode
         else:
             raise AssertionError('Invalid Output Type: {}'.format(out_type))
 
@@ -298,7 +337,37 @@ class PokeyConfig(object):
             if not self.verify_conversion(read_method(opath)):
                 raise AssertionError('Conversion Error! Please log and report')
 
+        # Reassign path/type setting to new value
+        self.fpath = opath
+        self.loaded_type = out_type
         return read_method(opath), opath
+
+    def do_encode(self,opath,data_dict):
+        # Format the data dictionary as a JSON object and
+        # save it in a StringIO stream for encoding
+        output = StringIO()
+        json.dump(data_dict,output,sort_keys=True,indent=4,ensure_ascii=False)
+
+        output.seek(0)
+        #print output.readlines()
+
+        with open(opath, 'w') as outfile:
+            base64.encode(output,outfile)
+
+        output.close()
+
+    def do_decode(self,inpath):
+        # Read the base64-encoded data, and convert it
+        # from JSON to a data dictionary
+        indata = StringIO()
+
+        with open(inpath, 'r') as infile:
+            base64.decode(infile,indata)
+
+        indata.seek(0)
+        retval = json.load(indata), inpath
+        indata.close()
+        return retval
 
     def write_config(self,**kw):
 
@@ -306,6 +375,8 @@ class PokeyConfig(object):
             write_method = self.save_json
         elif self.loaded_type == PokeyConfig.yaml:
             write_method = self.save_yaml
+        elif self.loaded_type == PokeyConfig.encoded:
+            write_method = self.do_encode
 
         write_method(self.fpath,self.conf_dict)
 
@@ -313,6 +384,7 @@ class PokeyConfig(object):
 
         for key in self.conf_dict:
             try:
+                print key
                 assert compare_dict[key]==self.conf_dict[key], \
                     "Conversion error! Retrying (val:{}|comp:{})".format(
                                                         val,compare_dict[key]
@@ -353,6 +425,8 @@ class PokeyConfig(object):
 
         elif conf_type == PokeyConfig.yaml:
             self.conf_dict = self.load_yaml(inpath)
+        elif conf_type == PokeyConfig.encoded:
+            self.conf_dict = self.do_decode(inpath)
         else:
             raise AssertionError("Invalid config type {}".format(conf_type))
 
