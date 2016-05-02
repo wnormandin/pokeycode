@@ -31,5 +31,4 @@ def getLinks(url):
             except:
                print "ERROR: skipping "+url
 
-
 getLinks(surl)

@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/local/bin/python2.7
 # -*- coding: utf-8 -*-
 
 import os
@@ -329,7 +329,7 @@ class AppConfig():
         elif fname.endswith('.yml'):
             self.cfg = PokeyConfig(fname,PokeyConfig.yaml)
         else:
-            self.convert_file()
+            self.convert_file(fname)
 
     def file_select(self):
         fname = raw_input("Enter a path : ")
