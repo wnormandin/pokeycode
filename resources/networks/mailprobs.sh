@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 
 declare -a ptrns=("undeliv" "mailer-daemon" "delivery-status")
-declare -a fields=("Envelope-to:" "Delivery-date:" "Diagnostic-Code:")
+declare -a fields=("Envelope-to:" "Delivery-date:" "Diagnostic-Code:" "spf" "spamassassin")
 
 # Search Key Words
 search () {

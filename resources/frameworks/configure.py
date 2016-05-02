@@ -74,7 +74,7 @@ class AppConfig():
             'hotkey_color':Color.RED,
             'menu_action':True
             }
-            ],
+            ]
         self.convert_menu = [
             {
             'label':'\nConvert (JSON <-> YAML)',
@@ -95,7 +95,7 @@ class AppConfig():
             'hotkey_color':Color.RED,
             'menu_action':True
             }
-            ],
+            ]
         self.main_menu = [
             {
             'label':'\nOpen a file',
@@ -188,11 +188,11 @@ class AppConfig():
 
         script_dir = os.path.dirname(__file__)
 
-        if self.cwd != script_dir and rel=:
+        if self.cwd != script_dir and not rel:
             path_base, fname = os.path.split(infile)
             retval = os.path.join(self.cwd,fname)
         else:
-            retval = infile
+            retval = os.path.join(script_dir,infile)
 
         return retval
 
@@ -222,6 +222,7 @@ class AppConfig():
         while True:
             current_menu = self.menu_queue[-1]
             selection_msg = "\nSelection > "
+            #print current_menu
             valid_selections = [i['hotkey_char'] for i in current_menu]
 
             for item in current_menu:
@@ -328,8 +329,10 @@ class AppConfig():
             self.cfg = PokeyConfig(fname)
         elif fname.endswith('.yml'):
             self.cfg = PokeyConfig(fname,PokeyConfig.yaml)
+        elif fname.endswith('.cfg'):
+            self.cfg = PokeyConfig(fname,PokeyConfig.encoded)
         else:
-            self.convert_file(fname)
+            self.cfg = PokeyConfig(fname,raw_input("Specify a delimiter > "))
 
     def file_select(self):
         fname = raw_input("Enter a path : ")

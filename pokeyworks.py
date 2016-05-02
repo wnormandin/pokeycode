@@ -225,7 +225,8 @@ class PokeyConfig(object):
 
         if not JSON_ENABLED or not YAML_ENABLED:
             mname = "pyyaml" if not YAML_ENABLED else "json"
-            raise AssertionError("Missing Dependency: {}".format(mname))
+            if mname == "json":
+                raise AssertionError("Missing Dependency: {}".format(mname))
         try:
             self.fpath = fpath
             self.load_config(conf_type)
@@ -240,13 +241,13 @@ class PokeyConfig(object):
         # (Optional)
 
         for key in self.conf_dict:
-            setattr(self,key,self.conf_dict[key])
-
+            setattr(self,key,str(self.conf_dict[key]))
+            
     def load_json(self,fpath):
         assert fpath.endswith(".json"),"Invalid file path to load as JSON"
         with open(fpath) as json_data:
             retval = json.load(json_data)
-
+        self.loaded_type = PokeyConfig.json
         return retval
 
     def yaml_constructor(self,loader,node):
@@ -365,7 +366,7 @@ class PokeyConfig(object):
             base64.decode(infile,indata)
 
         indata.seek(0)
-        retval = json.load(indata), inpath
+        retval = json.load(indata)
         indata.close()
         return retval
 
@@ -377,6 +378,8 @@ class PokeyConfig(object):
             write_method = self.save_yaml
         elif self.loaded_type == PokeyConfig.encoded:
             write_method = self.do_encode
+        else:
+            raise AssertionError("Unknown loaded type : {}".format(self.loaded_type))
 
         write_method(self.fpath,self.conf_dict)
 
@@ -397,17 +400,21 @@ class PokeyConfig(object):
 
         if inpath is None:
             inpath=self.fpath
-        if conf_type not in [PokeyConfig.json,PokeyConfig.yaml]:
+        if conf_type not in [PokeyConfig.json,PokeyConfig.yaml,PokeyConfig.encoded]:
             print "[*] Legacy PokeyConfig configuration detected!"
             while True:
                 print "\tConvert to [J]SON"
-                print "\tConvert to [Y]AML"
+                if YAML_ENABLED: print "\tConvert to [Y]AML"
+                print "\tConvert to [B]ase64/JSON"
                 choice = raw_input("\tSelection > ")
                 if choice.upper() == 'J':
                     out_type = PokeyConfig.json
                     break
                 elif choice.upper() == 'Y':
                     out_type = PokeyConfig.yaml
+                    break
+                elif choice.upper() == 'B':
+                    out_type = PokeyConfig.encoded
                     break
                 else:
                     print "[*] Invalid choice!  Conversion is required"
