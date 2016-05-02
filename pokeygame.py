@@ -26,7 +26,11 @@ class PokeyGame(object):
 
         # Game initialization 
         self.name = game_name
+<<<<<<< HEAD
         self.conf = fw.PokeyConfig(conf_path,fw.PokeyConfig.json,True)
+=======
+        self.conf = fw.PokeyConfig(conf_path,1,True)
+>>>>>>> 2513682a2009199f9ad22bccb85425369fa68eba
         self.config_init()
 
         for item in [
@@ -108,7 +112,7 @@ class PokeyGame(object):
         # is set instead
         for opt in game_opts:
             try:
-                setattr(self,opt[0],getattr(self.conf,opt[0]))
+                setattr(self,opt[0],self.conf.conf_dict[opt[0]])
             except:
                 setattr(self,opt[0],opt[1])
                 continue
@@ -150,8 +154,8 @@ class PokeyGame(object):
 
             z = loc[2]      # Load the current floor (z)
 
-            for x in range(game.conf.x_dim[0]):
-                for y in range(game.conf.y_dim[0]):
+            for x in range(game.conf.x_dim):
+                for y in range(game.conf.y_dim):
                     # Draw a map here!
                     pass
 
@@ -183,9 +187,9 @@ class MenuConfig(object):
         elif menu_type==MenuConfig.map_size_menu:
             # Set x / y / z Parameters
             return_items = [
-                ('set x ({0})'.format(game.conf.dim_x[0]),game.set_x),
-                ('set y ({0})'.format(game.conf.dim_y[0]),game.set_y),
-                ('set z ({0})'.format(game.conf.dim_z[0]),game.set_z),
+                ('set x ({0})'.format(game.conf.dim_x),game.set_x),
+                ('set y ({0})'.format(game.conf.dim_y),game.set_y),
+                ('set z ({0})'.format(game.conf.dim_z),game.set_z),
                 ('back',game.world_menu.display)
                 ]
         else:
@@ -401,12 +405,12 @@ class PokeyWorld:
     def grid_init_check(self):
         """ Verifies the given dimensions & returns the WorldGenerator gird """
         #try:
-            #assert isinstance(self.conf.dim_x[0],int),(
-            #    'Bad dimension x:{0}'.format(self.conf.dim_x[0]))
-            #assert isinstance(self.conf.dim_y[0],int),(
-            #    'Bad dimension y:{0}'.format(self.conf.dim_y[0]))
-            #assert isinstance(self.conf.dim_z[0],int),(
-            #    'Bad dimension z:{0}'.format(self.conf.dim_z[0]))
+            #assert isinstance(self.conf.dim_x,int),(
+            #    'Bad dimension x:{0}'.format(self.conf.dim_x))
+            #assert isinstance(self.conf.dim_y,int),(
+            #    'Bad dimension y:{0}'.format(self.conf.dim_y))
+            #assert isinstance(self.conf.dim_z,int),(
+            #    'Bad dimension z:{0}'.format(self.conf.dim_z))
         #except AssertionError:
             #raise
 
