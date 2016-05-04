@@ -4,19 +4,23 @@
 import argparse
 import smtplib
 import time
-from email.mime.text import MIMEText
+import pdb
 
 def parse_args():
     parser = argparse.ArgumentParser(
         prog='mailer.py',
-        usage='%(prog)s -s [SERVER] [-p [PORT]] -f [FROM] -t [TO] [LIST]'
+        usage='%(prog)s OPTIONS -s [SERVER] -f [FROM] -t [TO] [LIST] -m "[MSG]"'
         )
     parser.add_argument(
                     '-v','--verbose',
                     help='Enable verbose output',
                     action='store_true'
                     )
-    parser.add_argument('-s','--server',help='SMTP Server or IP',required=True)
+    parser.add_argument(
+                    '-l','--ssl',
+                    action='store_true',
+                    help='Use Secure SMTP over port 465'
+                    )
     parser.add_argument(
                     '-p', '--port',
                     nargs = '?',
@@ -24,9 +28,11 @@ def parse_args():
                     choices = [25,26,587,465],
                     type = int
                     )
+    parser.add_argument('-s','--server',help='SMTP Server or IP',required=True)
     parser.add_argument('-f','--source',help='Source E-mail Address',required=True)
     # The TO argument returns a list (even if only 1 argument is present)
     parser.add_argument('-t','--to',nargs='+',help='Recipient List',required=True)
+    parser.add_argument('-m','--message',nargs='?',help='Message body')
     return parser.parse_args()
 
 class SMTPMessage():
@@ -55,7 +61,11 @@ class SMTPMessage():
         try:
             server.connect(self.args.smtp_host, self.args.smtp_port)
             server.login(self.args.smtp_email, self.args.smtp_pass)
-            ret = server.sendmail(self.args.smtp_email, self.args.alert_recipient, self.build_message(self.message))
+            ret = server.sendmail(
+                                self.args.smtp_email,
+                                self.args.alert_recipient,
+                                self.build_message(self.message)
+                                )
         except Exception as e:
             print '** Sendmail Failed!'
             print 'Error :\n{0}'.format(e)
